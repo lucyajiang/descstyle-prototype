@@ -320,7 +320,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <p>Before you take any photos, choose how you'd like descriptions written. Nothing is selected yet — pick one option in each of the four groups. These become your starting settings for every photo, and you can change them at any point during the session.</p>
       <div id="setupError" class="alertbox" role="alert"></div>
 
-      <form id="setupStyleForm" novalidate>
+      <form id="setupStyleForm" novalidate autocomplete="off">
         <div id="setupControls"></div>
         <button type="button" class="btn btn-primary" id="saveStyleBtn">Save these settings and continue</button>
       </form>
@@ -339,7 +339,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
         <label class="filelabel secondary" for="libInput">Choose a photo from your library</label>
       </div>
 
-      <p id="studyPickWrap" hidden><button type="button" class="btn btn-secondary" id="toStudyImages">Use one of the study images</button></p>
+      <p id="studyPickWrap" hidden><button type="button" class="btn btn-secondary" id="toStudyImages">Back to the study images</button></p>
 
       <p class="muted">Photos and descriptions from this session are saved to the study's database so the interviewer can follow along with you.</p>
       <p id="backToDescWrap" hidden><button type="button" class="btn btn-secondary" id="backToDesc">Back to the current description</button></p>
@@ -351,7 +351,10 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <h1 id="imagesH" tabindex="-1">Study images</h1>
       <p>Your interviewer will tell you which one to choose.</p>
       <div id="imageList"></div>
-      <button type="button" class="btn btn-secondary" id="backFromImages">Back to taking a photo</button>
+
+      <h2 style="margin-top:1.75rem">Or use your own camera</h2>
+      <p class="muted">When your interviewer asks you to, you can take your own photos instead.</p>
+      <button type="button" class="btn btn-secondary" id="toOwnPhotos">Take my own photos</button>
     </section>
 
     <!-- =========================== RESULT ============================ -->
@@ -376,7 +379,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <h2 style="margin-top:1.75rem">Change the style</h2>
       <p class="muted">Pick the options you'd prefer, then write a new description. The photo stays the same.</p>
 
-      <form id="styleForm" novalidate>
+      <form id="styleForm" novalidate autocomplete="off">
         <div id="controls"></div>
 
         <div id="pendingNote" class="status" hidden>
@@ -394,7 +397,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
         <div id="historyList"></div>
       </details>
 
-      <button type="button" class="btn btn-secondary" id="newPhotoBtn">Take another photo</button>
+      <button type="button" class="btn btn-secondary" id="newPhotoBtn">Choose another image or photo</button>
 
       <div class="syncrow">
         <span>Saved to study database: <span class="pill" id="syncPill">Saving…</span></span>
@@ -1222,6 +1225,7 @@ function buildControls(hostId, prefix, onChange, initial){
       wrap.className = "opt";
       const input = document.createElement("input");
       input.type = "radio";
+      input.autocomplete = "off";
       input.name = dim.key;
       input.value = lvl.key;
       input.name = prefix + "-" + dim.key;
@@ -1413,6 +1417,18 @@ buildImageList();
 buildControls("controls", "opt", onStyleChange, null);
 buildControls("setupControls", "set", onSetupStyleChange, null);
 
+/* Browsers restore form state across a reload and when a page is resurrected
+   from the back/forward cache. For a study measuring unprompted choices, a
+   restored radio is a preset — clear them explicitly, on load and on restore. */
+function clearAllRadios(){
+  document.querySelectorAll('#setupControls input[type=radio], #controls input[type=radio]')
+    .forEach(el => { el.checked = false; });
+}
+clearAllRadios();
+window.addEventListener("pageshow", e => {
+  if (e.persisted && !state.baseStyleSet) clearAllRadios();
+});
+
 $("startBtn").addEventListener("click", () => {
   const pid = $("pid").value.trim();
   if (!pid){
@@ -1482,8 +1498,13 @@ function commitBaseStyle(chosen){
     detail: isBaselineStyle(chosen) ? "identical to the part-one baseline cell" : ""
   });
   saveNow();
-  showScreen("capture", "captureH");
-  announce("Starting style saved: " + styleSentence(chosen));
+  if (RESEARCHER_IMAGES.length){
+    showScreen("images", "imagesH");
+    announce("Starting style saved. Now choose a study image.");
+  } else {
+    showScreen("capture", "captureH");
+    announce("Starting style saved: " + styleSentence(chosen));
+  }
 }
 
 $("saveStyleBtn").addEventListener("click", () => {
@@ -1545,7 +1566,7 @@ async function useResearcherImage(img){
 }
 
 $("toStudyImages").addEventListener("click", () => showScreen("images", "imagesH"));
-$("backFromImages").addEventListener("click", () => showScreen("capture", "captureH"));
+$("toOwnPhotos").addEventListener("click", () => showScreen("capture", "captureH"));
 
 $("camInput").addEventListener("change", e => { handleFile(e.target.files[0], "camera"); e.target.value = ""; });
 $("libInput").addEventListener("change", e => { handleFile(e.target.files[0], "library"); e.target.value = ""; });
@@ -1579,7 +1600,11 @@ $("preferBtn").addEventListener("click", () => {
   announce("Saved version " + latest.generationIndex + " as your preferred style: " + latest.styleSentence);
 });
 
-$("newPhotoBtn").addEventListener("click", () => showScreen("capture", "captureH"));
+$("newPhotoBtn").addEventListener("click", () => {
+  const fromStudy = state.currentImage && state.currentImage.researcherImageId;
+  if (fromStudy && RESEARCHER_IMAGES.length) showScreen("images", "imagesH");
+  else showScreen("capture", "captureH");
+});
 $("backToDesc").addEventListener("click", () => showScreen("result", "resultH"));
 $("retrySync").addEventListener("click", () => { clearError(); state.warnedSync = false; Sync.failed = false; Sync.flush(); saveNow(); });
 
