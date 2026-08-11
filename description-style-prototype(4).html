@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Image Description Study</title>
+<meta name="color-scheme" content="light dark">
+<style>
+/* ---------------------------------------------------------------
+   Tokens. Low-vision-first: high contrast, large type, no webfonts
+   (system stack honors iOS Dynamic Type / Android font scaling).
+   --------------------------------------------------------------- */
+:root{
+  --paper:#ffffff;
+  --surface:#eef1f4;
+  --surface-2:#e2e7ec;
+  --ink:#12161b;
+  --ink-2:#454d57;
+  --line:#b9c1ca;
+  --line-strong:#6d7681;
+  --brand:#1b4db1;
+  --brand-ink:#ffffff;
+  --ok:#15603a;
+  --alert:#98122a;
+  --focus:#0b5fff;
+  --radius:12px;
+  --tap:48px;
+  --step:1;
+  font-size:calc(17px * var(--step));
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#0d1117;
+    --surface:#161c24;
+    --surface-2:#212a34;
+    --ink:#f2f5f8;
+    --ink-2:#c2cad3;
+    --line:#3a444f;
+    --line-strong:#7d8894;
+    --brand:#9dc0ff;
+    --brand-ink:#0d1117;
+    --ok:#7fdcac;
+    --alert:#ff9fae;
+    --focus:#9dc0ff;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:1rem;
+  line-height:1.55;
+  -webkit-text-size-adjust:100%;
+  padding:
+    env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.wrap{max-width:44rem;margin:0 auto;padding:1rem 1rem 4rem}
+
+/* Focus: never removed, always thick */
+:where(a,button,input,select,summary,[tabindex]):focus-visible,
+input[type=file]:focus-visible + .filelabel,
+input[type=radio]:focus-visible + .swatch{
+  outline:3px solid var(--focus);
+  outline-offset:2px;
+  border-radius:6px;
+}
+:focus:not(:focus-visible){outline:none}
+
+.vh{
+  position:absolute!important;width:1px;height:1px;overflow:hidden;
+  clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;
+}
+.skip{
+  position:absolute;left:-9999px;top:0;background:var(--brand);color:var(--brand-ink);
+  padding:.75rem 1rem;z-index:50;border-radius:0 0 8px 0;
+}
+.skip:focus{left:0}
+
+h1,h2,h3{line-height:1.25;margin:0 0 .5rem;font-weight:700;letter-spacing:-0.01em}
+h1{font-size:1.5rem}
+h2{font-size:1.25rem}
+h3{font-size:1.0625rem}
+p{margin:0 0 .75rem}
+.muted{color:var(--ink-2);font-size:.9375rem}
+
+/* Masthead */
+.mast{
+  display:flex;align-items:center;justify-content:space-between;gap:.75rem;
+  padding:.5rem 0 1rem;border-bottom:2px solid var(--line);margin-bottom:1.25rem;
+}
+.mast .eyebrow{
+  font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:700;color:var(--ink-2);margin:0;
+}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  min-height:var(--tap);min-width:var(--tap);width:100%;
+  padding:.75rem 1.125rem;border-radius:var(--radius);
+  font:inherit;font-weight:650;text-align:center;cursor:pointer;
+  border:2px solid transparent;
+}
+.btn + .btn{margin-top:.625rem}
+.btn-primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.btn-secondary{background:var(--paper);color:var(--ink);border-color:var(--line-strong)}
+.btn-quiet{background:transparent;color:var(--ink);border-color:transparent;text-decoration:underline;width:auto}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn[aria-disabled="true"]{opacity:.5}
+
+.filelabel{
+  display:flex;align-items:center;justify-content:center;
+  min-height:var(--tap);padding:.875rem 1.125rem;border-radius:var(--radius);
+  font-weight:650;cursor:pointer;border:2px solid;
+}
+.filelabel.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.filelabel.secondary{background:var(--paper);color:var(--ink);border-color:var(--line-strong)}
+.filelabel + .filelabel{margin-top:.625rem}
+
+/* Cards */
+.card{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius);padding:1rem;margin-bottom:1.25rem;
+}
+
+/* Fields */
+label.field{display:block;font-weight:650;margin-bottom:.375rem}
+input[type=text],
+input[type=password]{
+  width:100%;min-height:var(--tap);padding:.625rem .75rem;font:inherit;
+  color:var(--ink);background:var(--paper);
+  border:2px solid var(--line-strong);border-radius:var(--radius);
+}
+
+/* --- Signature element: the description sheet ------------------ */
+.sheet{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-left:6px solid var(--brand);
+  border-radius:var(--radius);
+  padding:1.125rem 1.125rem 1.25rem;
+  margin:0 0 1rem;
+}
+.sheet .versionline{
+  display:flex;flex-wrap:wrap;gap:.5rem;align-items:baseline;
+  font-size:.8125rem;letter-spacing:.1em;text-transform:uppercase;
+  font-weight:700;color:var(--ink-2);margin-bottom:.5rem;
+}
+.sheet .desc{
+  font-size:1.1875rem;line-height:1.65;max-width:42ch;margin:0;
+}
+.stylesentence{
+  font-size:.9375rem;color:var(--ink-2);margin:.75rem 0 0;
+  padding-top:.75rem;border-top:1px solid var(--line);
+}
+
+/* Style controls: radios as full-width rows */
+fieldset{
+  border:1px solid var(--line);border-radius:var(--radius);
+  padding:.75rem .875rem 1rem;margin:0 0 1rem;background:var(--paper);
+}
+legend{font-weight:700;padding:0 .375rem;font-size:1.0625rem}
+fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:.25rem 0 .75rem}
+.options{display:flex;flex-direction:column;gap:.5rem}
+.opt{position:relative;display:block}
+.opt input[type=radio]{
+  position:absolute;opacity:0;width:100%;height:100%;margin:0;
+  top:0;left:0;cursor:pointer;
+}
+.swatch{
+  display:flex;align-items:flex-start;gap:.625rem;
+  min-height:var(--tap);padding:.625rem .75rem;
+  border:2px solid var(--line-strong);border-radius:var(--radius);
+  background:var(--paper);
+}
+.swatch .dot{
+  flex:0 0 auto;width:1.375rem;height:1.375rem;margin-top:.125rem;
+  border:2px solid var(--line-strong);border-radius:50%;background:var(--paper);
+}
+.opt input[type=radio]:checked + .swatch{
+  border-color:var(--brand);
+  background:var(--surface-2);
+  box-shadow:inset 0 0 0 1px var(--brand);
+}
+.opt input[type=radio]:checked + .swatch .dot{
+  border-color:var(--brand);
+  background:radial-gradient(circle, var(--brand) 0 45%, var(--paper) 46% 100%);
+}
+.swatch .txt{display:block}
+.swatch .name{display:block;font-weight:650}
+.swatch .desc2{display:block;font-size:.875rem;color:var(--ink-2)}
+
+/* Photo preview */
+.photo{
+  display:block;width:100%;height:auto;border-radius:var(--radius);
+  border:1px solid var(--line);background:var(--surface);
+}
+
+/* History */
+details{border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);margin-bottom:1rem}
+summary{
+  min-height:var(--tap);display:flex;align-items:center;
+  padding:.75rem .875rem;font-weight:650;cursor:pointer;border-radius:var(--radius);
+}
+details > div{padding:0 .875rem .875rem}
+.version{border-top:1px solid var(--line);padding:.875rem 0 0;margin-top:.875rem}
+.version:first-child{border-top:0;margin-top:0}
+
+/* Status regions */
+.status{
+  display:flex;align-items:center;gap:.5rem;min-height:2.5rem;
+  padding:.625rem .75rem;border-radius:var(--radius);
+  background:var(--surface);border:1px solid var(--line);
+  font-weight:650;margin-bottom:1rem;
+}
+.status.is-error{border-color:var(--alert);color:var(--alert);background:var(--paper)}
+.alertbox{
+  border:2px solid var(--alert);color:var(--alert);background:var(--paper);
+  border-radius:var(--radius);padding:.875rem;margin-bottom:1rem;font-weight:650;
+}
+.alertbox:empty{display:none}
+
+.spinner{
+  flex:0 0 auto;width:1.125rem;height:1.125rem;border-radius:50%;
+  border:3px solid var(--line);border-top-color:var(--brand);
+  animation:spin .9s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){
+  .spinner{animation:none;border-top-color:var(--line)}
+  *{transition:none!important}
+}
+
+/* Sync pill */
+.syncrow{
+  display:flex;align-items:center;justify-content:space-between;gap:.75rem;
+  border-top:1px solid var(--line);margin-top:2rem;padding-top:.875rem;
+  font-size:.875rem;color:var(--ink-2);flex-wrap:wrap;
+}
+.pill{
+  display:inline-block;padding:.25rem .625rem;border-radius:999px;
+  border:1px solid var(--line-strong);font-weight:650;
+}
+.pill.ok{border-color:var(--ok);color:var(--ok)}
+.pill.bad{border-color:var(--alert);color:var(--alert)}
+
+/* Text size control */
+.sizectl{display:flex;gap:.375rem;align-items:center}
+.sizectl button{
+  min-height:2.25rem;min-width:2.75rem;font:inherit;font-weight:700;
+  background:var(--paper);color:var(--ink);
+  border:2px solid var(--line-strong);border-radius:8px;cursor:pointer;
+}
+.sizectl button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+
+/* Researcher tables */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius)}
+table{border-collapse:collapse;width:100%;font-size:.875rem}
+th,td{text-align:left;padding:.5rem .625rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--surface);font-weight:700}
+caption{text-align:left;padding:.625rem;font-weight:700}
+.thumb{width:72px;height:auto;border-radius:6px;border:1px solid var(--line)}
+
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <p class="eyebrow">Image description study</p>
+      <p class="muted" id="sessionLabel" style="margin:0">Not started</p>
+    </div>
+    <div class="sizectl" role="group" aria-label="Text size">
+      <button type="button" id="sizeA" aria-pressed="true">A</button>
+      <button type="button" id="sizeB" aria-pressed="false" style="font-size:1.15rem">A</button>
+      <button type="button" id="sizeC" aria-pressed="false" style="font-size:1.35rem">A</button>
+    </div>
+  </header>
+
+  <!-- Global announcements -->
+  <div id="live" role="status" aria-live="polite" class="vh"></div>
+  <div id="errorBox" class="alertbox" role="alert"></div>
+
+  <main id="main" tabindex="-1">
+
+    <!-- ============================ SETUP ============================ -->
+    <section id="screen-setup" aria-labelledby="setupH">
+      <h1 id="setupH" tabindex="-1">Start your session</h1>
+      <p>You'll take a photo, hear a description of it, and then adjust how that description is written until it suits you.</p>
+
+      <div class="card">
+        <label class="field" for="pid">Participant ID</label>
+        <p class="muted" id="pidHint" style="margin:0 0 .5rem">Your interviewer will give you this. Letters and numbers, for example P07.</p>
+        <input type="text" id="pid" name="pid" aria-describedby="pidHint"
+               autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go">
+      </div>
+
+      <details id="keyBlock" hidden>
+        <summary>Researcher setup: API key</summary>
+        <div>
+          <p class="muted">No proxy is configured, so this session needs an OpenAI API key. The interviewer enters it here. It stays in this page's memory for the session only — it is never saved to the study database, never written to the log, and never sent anywhere except OpenAI.</p>
+          <label class="field" for="apikey">OpenAI API key</label>
+          <input type="password" id="apikey" name="apikey" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+        </div>
+      </details>
+
+      <button type="button" class="btn btn-primary" id="startBtn">Start session</button>
+      <p style="margin-top:1.5rem"><button type="button" class="btn btn-quiet" id="toResearcher">Researcher tools</button></p>
+    </section>
+
+    <!-- ========================= STYLE SETUP ========================= -->
+    <section id="screen-style" aria-labelledby="styleH" hidden>
+      <h1 id="styleH" tabindex="-1">Set up your description style</h1>
+      <p>Before you take any photos, choose how you'd like descriptions written. Nothing is selected yet — pick one option in each of the four groups. These become your starting settings for every photo, and you can change them at any point during the session.</p>
+      <div id="setupError" class="alertbox" role="alert"></div>
+
+      <form id="setupStyleForm" novalidate>
+        <div id="setupControls"></div>
+        <button type="button" class="btn btn-primary" id="saveStyleBtn">Save these settings and continue</button>
+      </form>
+    </section>
+
+    <!-- =========================== CAPTURE =========================== -->
+    <section id="screen-capture" aria-labelledby="captureH" hidden>
+      <h1 id="captureH" tabindex="-1">Take a photo</h1>
+      <p>Point your camera at anything nearby that you'd normally want described. You can take as many photos as you like during the session.</p>
+
+      <div class="card">
+        <input type="file" id="camInput" class="vh" accept="image/*" capture="environment">
+        <label class="filelabel primary" for="camInput">Take a photo with the camera</label>
+
+        <input type="file" id="libInput" class="vh" accept="image/*">
+        <label class="filelabel secondary" for="libInput">Choose a photo from your library</label>
+      </div>
+
+      <p id="studyPickWrap" hidden><button type="button" class="btn btn-secondary" id="toStudyImages">Use one of the study images</button></p>
+
+      <p class="muted">Photos and descriptions from this session are saved to the study's database so the interviewer can follow along with you.</p>
+      <p id="backToDescWrap" hidden><button type="button" class="btn btn-secondary" id="backToDesc">Back to the current description</button></p>
+      <p><button type="button" class="btn btn-quiet" id="editStyleBtn">Change my starting style settings</button></p>
+    </section>
+
+    <!-- ======================== STUDY IMAGES ========================= -->
+    <section id="screen-images" aria-labelledby="imagesH" hidden>
+      <h1 id="imagesH" tabindex="-1">Study images</h1>
+      <p>Your interviewer will tell you which one to choose.</p>
+      <div id="imageList"></div>
+      <button type="button" class="btn btn-secondary" id="backFromImages">Back to taking a photo</button>
+    </section>
+
+    <!-- =========================== RESULT ============================ -->
+    <section id="screen-result" aria-labelledby="resultH" hidden>
+      <h1 id="resultH" tabindex="-1">Your description</h1>
+
+      <div id="statusRow" class="status" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="statusText">Writing the description…</span>
+      </div>
+
+      <h2 class="vh">Photo</h2>
+      <img id="preview" class="photo" alt="The photo you just took. A written description of it appears below." src="">
+
+      <h2 id="descH" style="margin-top:1.25rem">Description</h2>
+      <article class="sheet" id="sheet" aria-labelledby="descH" aria-busy="false">
+        <p class="versionline"><span id="versionLabel">Version 1</span></p>
+        <p class="desc" id="descText" tabindex="-1"></p>
+        <p class="stylesentence" id="styleSentence"></p>
+      </article>
+
+      <h2 style="margin-top:1.75rem">Change the style</h2>
+      <p class="muted">Pick the options you'd prefer, then write a new description. The photo stays the same.</p>
+
+      <form id="styleForm" novalidate>
+        <div id="controls"></div>
+
+        <div id="pendingNote" class="status" hidden>
+          <span id="pendingText"></span>
+        </div>
+
+        <button type="button" class="btn btn-primary" id="regenBtn">Write a new description with these settings</button>
+        <button type="button" class="btn btn-secondary" id="resetBtn">Go back to my starting style</button>
+        <button type="button" class="btn btn-secondary" id="preferBtn">Save this as the style I prefer</button>
+      </form>
+
+      <h2 style="margin-top:1.75rem">Earlier versions</h2>
+      <details id="historyDetails">
+        <summary><span id="historySummary">Earlier versions of this description (0)</span></summary>
+        <div id="historyList"></div>
+      </details>
+
+      <button type="button" class="btn btn-secondary" id="newPhotoBtn">Take another photo</button>
+
+      <div class="syncrow">
+        <span>Saved to study database: <span class="pill" id="syncPill">Saving…</span></span>
+        <button type="button" class="btn btn-quiet" id="retrySync" hidden>Try saving again</button>
+      </div>
+    </section>
+
+    <!-- ========================== RESEARCHER ========================= -->
+    <section id="screen-researcher" aria-labelledby="resH" hidden>
+      <h1 id="resH" tabindex="-1">Researcher tools</h1>
+      <p class="muted" id="storageNote"></p>
+
+      <div class="card">
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+          <button type="button" class="btn btn-secondary" id="refreshBtn" style="width:auto">Refresh now</button>
+          <label style="display:flex;align-items:center;gap:.5rem;min-height:var(--tap);font-weight:650">
+            <input type="checkbox" id="autoRefresh" checked style="width:1.25rem;height:1.25rem">
+            Refresh automatically every 10 seconds
+          </label>
+        </div>
+        <p class="muted" id="refreshedAt" style="margin:.75rem 0 0">Not loaded yet.</p>
+      </div>
+
+      <h2>Sessions</h2>
+      <div id="sessionList"></div>
+
+      <h2>Export</h2>
+      <button type="button" class="btn btn-secondary" id="exportCsv">Download all descriptions as CSV</button>
+      <button type="button" class="btn btn-secondary" id="exportJson">Download the full log as JSON</button>
+
+      <p style="margin-top:1.5rem"><button type="button" class="btn btn-quiet" id="backFromResearcher">Back to the participant view</button></p>
+    </section>
+
+  </main>
+</div>
+
+<script>
+"use strict";
+/* =================================================================
+   CONFIG
+   ================================================================= */
+const CONFIG = {
+  /* --- Model. Set MODEL to the exact string used in generate.py so the
+         prototype's descriptions match the survey stimuli. --- */
+  MODEL: "gpt-5.6",
+  ENDPOINT: "https://api.openai.com/v1/chat/completions",
+  REASONING_EFFORT: "low",   // none | low | medium | high | xhigh | max
+  VERBOSITY: null,           // null = omit. Leave omitted: it fights the word targets.
+  MAX_OUTPUT_TOKENS: 3000,   // sent as max_completion_tokens; reasoning tokens count against it
+  SEED: null,                // set a number to match generate.py's determinism, or leave null
+  IMAGE_DETAIL: "high",
+  REQUEST_TIMEOUT_MS: 90000,   // a hung request otherwise blocks the session forever
+  RETRY_TRANSIENT: 2,          // extra attempts on 429 / 5xx / network drop
+
+  /* --- Auth. Prefer the proxy: it keeps the key off participants' phones.
+         If PROXY_URL is empty the page asks the researcher for a key at setup. --- */
+  PROXY_URL: "",             // e.g. "https://descstyle-proxy.yourname.workers.dev"
+
+  /* --- Study database: the Apps Script /exec URL --- */
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyZf0K9t16nuZ_5ta2hcPdls_LfkeTfetSKS5rOgwXTRyQSlnF_Sj47Vepl3yXN31Jt/exec",
+  SHARED_SECRET: "",         // must match SHARED_SECRET in the Apps Script, or leave both empty
+  SHARED: true,              // also mirror to artifact storage when it exists
+  MAX_IMAGE_DIM: 1280,
+  JPEG_QUALITY: 0.72,
+  AUTO_REFRESH_MS: 10000,
+  SCHEMA: 1
+};
+
+/* ---------------------------------------------------------------------
+   STUDY IMAGES for Task 2. Drop files into an images/ folder next to this
+   page and list them here. Order shown is the order below. Leave the array
+   empty and the study-image option disappears from the app entirely.
+   `id` becomes the image_id in the sheet, so keep it stable and unique.
+   --------------------------------------------------------------------- */
+const RESEARCHER_IMAGES = [
+  { id: "Obj_1",      category: "Object",              label: "Object",              src: "images/Obj_1.jpg" },
+  { id: "Obj_Text_1", category: "Object with text",    label: "Object with text",    src: "images/Obj_Text_1.jpg" },
+  { id: "People_1",   category: "People",              label: "People",              src: "images/People_1.jpg" },
+  { id: "Pets_1",     category: "Pets",                label: "Pets",                src: "images/Pets_1.jpg" },
+  { id: "Sur_Ext_1",  category: "Surroundings, outdoors", label: "Surroundings, outdoors", src: "images/Sur_Ext_1.jpg" },
+  { id: "Sur_Int_1",  category: "Surroundings, indoors",  label: "Surroundings, indoors",  src: "images/Sur_Int_1.jpg" }
+];
+
+/* Study images already live in your repo, so their bytes are not re-uploaded
+   to Drive. The row still records which one was used. */
+const UPLOAD_RESEARCHER_IMAGES = false;
+
+/* Held in memory only. Never written to the database, never logged. */
+let API_KEY = "";
+
+/* =================================================================
+   STYLE DIMENSIONS — mirrors the survey's four dimensions.
+   Baseline cell = assertive / moderate / professional / objective.
+   ================================================================= */
+const DIMENSIONS = [
+  {
+    key: "confidence",
+    label: "Confidence",
+    hint: "How certain the description sounds about what it says.",
+    levels: [
+      { key:"assertive", label:"Assertive", promptLabel:"Assertive",
+        blurb:"States things directly, with no uncertainty." },
+      { key:"hedging", label:"Hedging", promptLabel:"Hedging",
+        blurb:"Flags uncertainty throughout." }
+    ]
+  },
+  {
+    key: "specificity",
+    label: "Level of detail",
+    hint: "How much the description covers.",
+    levels: [
+      { key:"minimal", label:"Minimal", promptLabel:"Minimal",
+        blurb:"Just the main subject and its general layout." },
+      { key:"moderate", label:"Moderate", promptLabel:"Moderate",
+        blurb:"Main subject, layout, background, and a few key details." },
+      { key:"maximal", label:"Maximal", promptLabel:"Maximal",
+        blurb:"Everything notable, including fine details and any text." }
+    ]
+  },
+  {
+    key: "formality",
+    label: "Formality",
+    hint: "How formal or casual the wording is.",
+    levels: [
+      { key:"professional", label:"Professional", promptLabel:"Professional",
+        blurb:"Complete sentences in a neutral, report-like register." },
+      { key:"conversational", label:"Conversational", promptLabel:"Conversational",
+        blurb:"Like a friend casually telling you about the picture." }
+    ]
+  },
+  {
+    key: "subjectivity",
+    label: "Interpretation",
+    hint: "Whether the description sticks to what is visible or adds its own read on the scene.",
+    levels: [
+      { key:"objective", label:"Objective", promptLabel:"Objective",
+        blurb:"Only what is observable. No inferences or judgments." },
+      { key:"interpretive", label:"Interpretive", promptLabel:"Interpretive",
+        blurb:"Adds mood, purpose, and what is going on." },
+      { key:"opinionated", label:"Opinionated", promptLabel:"Opinionated",
+        blurb:"Adds opinions about how things look." }
+    ]
+  }
+];
+/* Option order within each dimension is shuffled once per session, matching the
+   survey's per-participant level shuffle. A fixed order is itself a nudge:
+   whatever sits first gets picked more often. The order used is logged with the
+   session so it can be reconstructed. */
+function shuffled(arr){
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+const LEVEL_ORDER = {};
+
+const DEFAULT_STYLE = { confidence:"assertive", specificity:"moderate", formality:"professional", subjectivity:"objective" };
+
+/* ---------------------------------------------------------------------
+   Word targets sent in the user message.
+   --------------------------------------------------------------------- */
+const LENGTH_TARGETS = { minimal: 20, moderate: 40, maximal: 60 };
+
+/* ---------------------------------------------------------------------
+   System prompt: verbatim from the part-one stimulus generation pipeline.
+   Do not paraphrase or "improve" this — part two only compares to part one
+   if the generation instructions are identical.
+   --------------------------------------------------------------------- */
+const SYSTEM_PROMPT = `Role: You are a professional describer writing image descriptions for blind and low vision people.
+
+Primary directive: Write ONE description of the attached image, in the style specified by the four dimension settings in the user message. Adhere to the style specified even if it goes against the default neutral description.
+
+Rules:
+- Describe only what is actually visible in the image. Do not invent or assume details that are not shown. 
+- Do not guess the identities of people or named entities unless their names are legibly shown. Do not assume the age or gender of people. Do not name breeds, brands, or models unless legibly shown. Only describe visible attributes.
+- Transcribe any clearly visible text exactly as it appears, except at minimal specificity. Exceed the length target only as far as needed to complete a transcription, and by as little as possible. Aim to remain within 1.25x of the length target.
+- Name each object with the most common everyday term for it and use the same term throughout.
+- Consider, as relevant to the specificity setting: the main subjects; their spatial layout; any visible text; the setting; and notable details (color, count, clothing, expressions). 
+- For all descriptions except minimally detailed ones, state exact counts for countable subjects or objects. If ten or fewer, do not use 'several,' 'many,' or 'multiple' where a number is determinable. If more than ten, use 'many.'
+- Follow the target length in the user message.
+- Do not begin with "Image of" or "Photo of." Start with the content.
+
+- Defaults: confidence (assertive), specificity (moderate), formality (professional), subjectivity (objective). Example: "A group of four people stand around a large table with cake and food on it. A banner behind them reads 'Happy Birthday.' They are smiling widely, and a large amount of colorful confetti is in the air around them."
+
+== CONFIDENCE ==
+Assertive: State observations directly and confidently. Do not indicate uncertainty or use hedging words ("appears to be," "seems," "might").
+Hedging: Express uncertainty throughout, distributed across the whole description ("this might be," "this could be," "this is possibly"). Do not use terms such as "what looks like" or "this appears to be." Ensure that there are at least two instances of hedging within the description. Begin the description with a hedge and include at least one in the final sentence. 
+
+== SPECIFICITY ==
+Minimal: Only the main subject and its general layout. Transcribe only the single most prominent text element. Do not elaborate.
+Moderate: Main subject, general layout, background, and a few key details.
+Maximal: All notable attributes such as subject, layout, background, visible text, fine details. Remain factual; do not invent detail to reach length.
+
+== FORMALITY ==
+Professional: Complete, well-formed sentences in a neutral, report-like register. No contractions. No casual connectors.
+Conversational: Take the tone of a person casually telling a good friend about the picture and ensure this tone is maintained throughout every sentence. Use contractions wherever natural ("there's," "it's," "they're") and mild everyday phrasing ("a big table," "right in the middle," "a bunch of," "sitting there"). Frequently start sentences with either "and" or "so" to reflect natural, casual spoken communication.
+
+== SUBJECTIVITY ==
+Objective: Only observable content. No inference about mood, intent, cause, or activity beyond what is directly shown. Do not use aesthetic or evaluative adjectives or judgments ("beautiful," "charming," "attractive," "unappealing," "underwhelming"). Observable surface properties ("shiny," "worn," "faded") are acceptable.
+Interpretive: Add grounded inferences about the mood, purpose, atmosphere, or activity that a sighted viewer would read immediately from the scene (e.g., "a celebration," "a tense standoff"). Do not evaluate quality or appeal. Do not use any judgment words such as "beautiful," "polished," "impressive," "elegant," "appealing," "refined," "pleasant," "lovely," or "nice." Avoid using adjectives in the inferences that have very positive or very negative connotations (e.g., "pristine," "idyllic," "neglected," "bleak").
+Opinionated: Include interpretive readings and grounded inferences about the situation and mood AND include explicit aesthetic / value judgments ("beautiful," "charming," "attractive," "unappealing," "underwhelming"). Aesthetic judgments should describe the scene, setting, arrangement, or objects, not the physical appearance of the people. Include one opinionated phrase at the start of the description and use at least two judgments or phrases in the description without exceeding the target length or adding new content.
+
+STYLE EXAMPLES (same scene, one dimension varied at a time):
+
+Assertive, Moderately Detailed, Professional, and Objective (reference): "A group of four people stand around a large table with cake and food on it. A banner behind them reads 'Happy Birthday.' They are smiling widely, and a large amount of colorful confetti is in the air around them."
+
+Hedging: "This might be a group of four people standing around a large table that possibly holds cake and food. A banner behind them might read 'Happy Birthday.' They could be smiling, with what might be confetti in the air."
+
+Minimal specificity: "A group of people stand around a table with a birthday banner in the background."
+
+Maximal specificity: "A group of four people stand close together around a large round table which holds a frosted cake, assorted food including sandwiches and salad, and drinks such as orange juice. A blue banner reading 'Happy Birthday' in white cursive hangs on the wall behind them. They are smiling broadly as rainbow confetti falls through the air around them."
+
+Conversational: "So there's a group of four people standing around a big table with cake and food on it. And there's a 'Happy Birthday' banner behind them, and they're all smiling, and there's also lots of colorful confetti everywhere."
+
+Interpretive: "A group of four people gather together around a large table for a birthday celebration, with cake and food spread out in front of them. A banner behind them reads 'Happy Birthday.' They are smiling broadly, and a large amount of colorful confetti fills the air around them in a festive scene."
+
+Opinionated: "A charming scene shows a group of four people gathering around a large table with an appetizing spread of cake and food in a warm celebration. A gorgeous banner behind them reads 'Happy Birthday.' They are smiling, with wonderfully colorful confetti filling the air around them."`;
+
+/* User message: the four dimension settings plus the target length. */
+function buildUserMessage(style){
+  const lines = DIMENSIONS.map(d => {
+    const lvl = d.levels.find(l => l.key === style[d.key]);
+    return d.key.charAt(0).toUpperCase() + d.key.slice(1) + ": " + lvl.promptLabel;
+  });
+  lines.push("Target length: approximately " + LENGTH_TARGETS[style.specificity] + " words.");
+  return lines.join("\n") +
+    "\n\nDescribe the attached image as a single description, following the style settings above.";
+}
+
+function styleSentence(style){
+  return DIMENSIONS.map(d => {
+    const lvl = d.levels.find(l => l.key === style[d.key]);
+    return d.label.toLowerCase() + ": " + lvl.label.toLowerCase();
+  }).join("; ") + ".";
+}
+function isBaselineStyle(style){ return sameStyle(style, DEFAULT_STYLE); }
+function sameStyle(a,b){ return DIMENSIONS.every(d => a[d.key] === b[d.key]); }
+
+/* =================================================================
+   STORAGE
+   Primary: the Apps Script collector — one row per record, queued and
+   retried, so a description reaches the Sheet within a second or two of
+   being generated. Secondary: artifact storage, when it exists.
+   ================================================================= */
+const mirror = new Map();
+const DB = {
+  available: typeof window !== "undefined" && !!window.storage,
+  async put(key, value){
+    mirror.set(key, value);
+    if (!window.storage) return false;
+    try { await window.storage.set(key, JSON.stringify(value), CONFIG.SHARED); return true; }
+    catch(e){ return false; }
+  },
+  async get(key){
+    if (window.storage){
+      try {
+        const r = await window.storage.get(key, CONFIG.SHARED);
+        if (r && r.value) return JSON.parse(r.value);
+      } catch(e){}
+    }
+    return mirror.has(key) ? mirror.get(key) : null;
+  },
+  async listKeys(prefix){
+    if (window.storage){
+      try {
+        const r = await window.storage.list(prefix, CONFIG.SHARED);
+        if (r && Array.isArray(r.keys)) return r.keys;
+      } catch(e){}
+    }
+    return Array.from(mirror.keys()).filter(k => k.startsWith(prefix));
+  }
+};
+const sessionKey = sid => "descstyle:session:" + sid;
+const imageKey   = (sid,iid) => "descstyle:image:" + sid + ":" + iid;
+
+const Sync = {
+  queue: [],
+  sending: false,
+  sent: 0,
+  unconfirmed: 0,
+  failed: false,
+
+  push(record){
+    if (!CONFIG.APPS_SCRIPT_URL) return;
+    record.recordId = uid("r");
+    record.sessionId = state.sessionId;
+    record.participantId = state.participantId;
+    record.clientTime = new Date().toISOString();
+    if (CONFIG.SHARED_SECRET) record.secret = CONFIG.SHARED_SECRET;
+    this.queue.push(record);
+    this.flush();
+  },
+
+  async flush(){
+    if (this.sending || !this.queue.length) return;
+    this.sending = true;
+    updateSyncPill();
+
+    while (this.queue.length){
+      const rec = this.queue[0];
+      const outcome = await this.send(rec);
+      if (outcome === "retry"){
+        this.sending = false;
+        this.failed = true;
+        updateSyncPill();
+        setTimeout(() => { this.failed = false; this.flush(); }, 6000);
+        return;
+      }
+      this.queue.shift();
+      this.sent++;
+      if (outcome === "unconfirmed") this.unconfirmed++;
+      this.failed = false;
+      updateSyncPill();
+    }
+    this.sending = false;
+    updateSyncPill();
+  },
+
+  /* Text/plain avoids a CORS preflight, which Apps Script does not answer. */
+  async send(rec){
+    for (let attempt = 0; attempt < 2; attempt++){
+      try {
+        const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(rec),
+          redirect: "follow"
+        });
+        const body = await res.json();
+        if (body && body.ok) return "ok";
+        return "retry";
+      } catch(err){
+        /* Reading the reply can fail on CORS even when the write landed.
+           Resend opaquely: a duplicate is recoverable via record_id, a
+           missing row is not. */
+        try {
+          await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: "POST", mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(rec)
+          });
+          return "unconfirmed";
+        } catch(e2){ /* fall through and retry once */ }
+      }
+    }
+    return "retry";
+  }
+};
+
+/* =================================================================
+   STATE
+   ================================================================= */
+const state = {
+  sessionId: null,
+  participantId: "",
+  startedAt: null,
+  images: [],          // {imageId, capturedAt, width, height, bytes, storageKey}
+  descriptions: [],    // full records, every version
+  events: [],
+  currentImage: null,  // {imageId, base64, dataUrl, ...}
+  baseStyle: Object.assign({}, DEFAULT_STYLE),   // the participant's own starting settings
+  pendingBaseStyle: {},   // starts empty: nothing preselected
+  currentStyle: Object.assign({}, DEFAULT_STYLE),
+  lastGeneratedStyle: null,
+  generating: false,
+  warnedSync: false
+};
+
+const $ = id => document.getElementById(id);
+const uid = p => p + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,7);
+
+function announce(msg){ const l = $("live"); l.textContent = ""; setTimeout(() => { l.textContent = msg; }, 60); }
+function showError(msg){ $("errorBox").textContent = msg || ""; }
+function clearError(){ $("errorBox").textContent = ""; }
+
+/* ---------- session persistence ---------- */
+function sessionRecord(){
+  return {
+    schemaVersion: CONFIG.SCHEMA,
+    sessionId: state.sessionId,
+    participantId: state.participantId,
+    startedAt: state.startedAt,
+    lastUpdated: new Date().toISOString(),
+    device: {
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      viewport: window.innerWidth + "x" + window.innerHeight,
+      pixelRatio: window.devicePixelRatio || 1
+    },
+    images: state.images,
+    descriptions: state.descriptions,
+    events: state.events
+  };
+}
+let saveTimer = null;
+function logEvent(type, data){
+  state.events.push(Object.assign({ type, at:new Date().toISOString() }, data || {}));
+  scheduleSave();
+}
+function scheduleSave(immediate){
+  clearTimeout(saveTimer);
+  if (immediate) return saveNow();
+  saveTimer = setTimeout(saveNow, 800);
+}
+async function saveNow(){
+  if (!state.sessionId) return;
+  await DB.put(sessionKey(state.sessionId), sessionRecord());
+  updateSyncPill();
+}
+function updateSyncPill(){
+  const pill = $("syncPill"), retry = $("retrySync");
+  if (!pill) return;
+  pill.classList.remove("ok","bad");
+
+  if (!CONFIG.APPS_SCRIPT_URL){
+    pill.textContent = "Not connected";
+    pill.classList.add("bad");
+    retry.hidden = true;
+    return;
+  }
+  if (Sync.failed || Sync.queue.length > 3){
+    pill.textContent = "Retrying (" + Sync.queue.length + " waiting)";
+    pill.classList.add("bad");
+    retry.hidden = false;
+    if (!state.warnedSync){
+      state.warnedSync = true;
+      showError("Records are not reaching the study database. Nothing is lost — they will keep retrying. Tell your interviewer if this stays on screen.");
+    }
+    return;
+  }
+  if (Sync.sending || Sync.queue.length){
+    pill.textContent = "Saving…";
+    retry.hidden = true;
+    return;
+  }
+  pill.textContent = Sync.unconfirmed ? "Saved (" + Sync.unconfirmed + " unconfirmed)" : "Saved";
+  pill.classList.add("ok");
+  retry.hidden = true;
+  state.warnedSync = false;
+}
+
+/* =================================================================
+   SCREENS
+   ================================================================= */
+const SCREENS = ["setup","style","capture","images","result","researcher"];
+function showScreen(name, focusId){
+  SCREENS.forEach(s => { $("screen-" + s).hidden = (s !== name); });
+  const target = $(focusId);
+  if (target) setTimeout(() => target.focus(), 40);
+}
+
+/* =================================================================
+   IMAGE HANDLING
+   ================================================================= */
+const HEIC_DECODER_SRC = "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js";
+let heicDecoderPromise = null;
+
+function looksHeic(file){
+  const t = (file.type || "").toLowerCase();
+  const n = (file.name || "").toLowerCase();
+  return t.indexOf("heic") >= 0 || t.indexOf("heif") >= 0 ||
+         /\.hei[cf]$/.test(n);
+}
+
+/* Loaded only when a HEIC actually turns up, so the common case pays nothing. */
+function loadHeicDecoder(){
+  if (heicDecoderPromise) return heicDecoderPromise;
+  heicDecoderPromise = new Promise((resolve, reject) => {
+    if (window.heic2any) return resolve(window.heic2any);
+    const tag = document.createElement("script");
+    tag.src = HEIC_DECODER_SRC;
+    tag.onload = () => window.heic2any ? resolve(window.heic2any)
+                                       : reject(new Error("Decoder loaded but unavailable."));
+    tag.onerror = () => reject(new Error("Could not download the photo converter."));
+    document.head.appendChild(tag);
+  });
+  return heicDecoderPromise;
+}
+
+function decodeViaImgTag(blob){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("decode failed")); };
+    img.src = url;
+  });
+}
+
+/*
+ * Three routes, cheapest first:
+ *   1. createImageBitmap with EXIF orientation applied — fast, but no HEIC.
+ *   2. An <img> tag — Safari decodes HEIC through the OS, and modern browsers
+ *      apply EXIF orientation to <img> by default, so drawImage stays upright.
+ *   3. heic2any, downloaded on demand — for Android, where neither works.
+ */
+async function decodeImage(file){
+  if (!looksHeic(file)){
+    try { return await createImageBitmap(file, { imageOrientation: "from-image" }); }
+    catch(e){ /* fall through */ }
+  }
+  try { return await decodeViaImgTag(file); }
+  catch(e){ /* fall through */ }
+
+  const heic2any = await loadHeicDecoder();
+  const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+  const jpeg = Array.isArray(converted) ? converted[0] : converted;
+  try { return await createImageBitmap(jpeg, { imageOrientation: "from-image" }); }
+  catch(e){ return await decodeViaImgTag(jpeg); }
+}
+
+async function fileToCompressedJpeg(file){
+  const bitmap = await decodeImage(file);
+  const w0 = bitmap.width || bitmap.naturalWidth;
+  const h0 = bitmap.height || bitmap.naturalHeight;
+  if (!w0 || !h0) throw new Error("The photo could not be read.");
+
+  const scale = Math.min(1, CONFIG.MAX_IMAGE_DIM / Math.max(w0, h0));
+  const w = Math.max(1, Math.round(w0 * scale));
+  const h = Math.max(1, Math.round(h0 * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+  const dataUrl = canvas.toDataURL("image/jpeg", CONFIG.JPEG_QUALITY);
+  if (bitmap.close) bitmap.close();
+  return { dataUrl, base64: dataUrl.split(",")[1], width: w, height: h };
+}
+
+async function handleFile(file, source, researcher){
+  if (!file) return;
+  clearError();
+  showScreen("result", "resultH");
+  setBusy(true, "Preparing your photo…");
+  try {
+    const img = await fileToCompressedJpeg(file);
+    const imageId = researcher ? researcher.id + "-" + uid("r").slice(2) : uid("img");
+    const rec = {
+      imageId,
+      capturedAt: new Date().toISOString(),
+      source,
+      mediaType: "image/jpeg",
+      width: img.width, height: img.height,
+      approxBytes: Math.round(img.base64.length * 0.75),
+      researcherImageId: researcher ? researcher.id : "",
+      researcherCategory: researcher ? researcher.category : "",
+      storageKey: imageKey(state.sessionId, imageId)
+    };
+    state.currentImage = Object.assign({ base64: img.base64, dataUrl: img.dataUrl }, rec);
+    state.images.push(rec);
+    $("preview").src = img.dataUrl;
+
+    // Upload the image itself before generating anything.
+    await DB.put(rec.storageKey, {
+      sessionId: state.sessionId, participantId: state.participantId,
+      imageId, capturedAt: rec.capturedAt, mediaType: "image/jpeg",
+      width: img.width, height: img.height, dataUrl: img.dataUrl
+    });
+    logEvent("image_captured", { imageId, source, width:img.width, height:img.height });
+    Sync.push({
+      type: "photo", imageId, capturedAt: rec.capturedAt, source,
+      width: img.width, height: img.height,
+      researcherImageId: rec.researcherImageId,
+      researcherCategory: rec.researcherCategory,
+      // study images already live in the repo; no need to re-upload the bytes
+      imageBase64: (researcher && !UPLOAD_RESEARCHER_IMAGES) ? "" : img.base64
+    });
+
+    // Each new photo starts from the participant's own settings, not ours.
+    state.currentStyle = Object.assign({}, state.baseStyle);
+    state.lastGeneratedStyle = null;
+    syncControlsFromState();
+    renderHistory();
+    $("backToDescWrap").hidden = false;
+
+    await generate(true);
+  } catch(err){
+    setBusy(false);
+    showError("That photo couldn't be prepared. " + (err.message || "Please try taking it again."));
+    announce("The photo couldn't be prepared.");
+  }
+}
+
+/* =================================================================
+   GENERATION
+   ================================================================= */
+function setBusy(on, msg){
+  state.generating = on;
+  $("statusRow").hidden = !on;
+  if (msg) $("statusText").textContent = msg;
+  $("sheet").setAttribute("aria-busy", on ? "true" : "false");
+  ["regenBtn","resetBtn","preferBtn","newPhotoBtn"].forEach(id => { $(id).disabled = on; });
+  if (on && msg) announce(msg);
+}
+
+/* Transient failures — rate limits, gateway blips, a phone switching from wifi
+   to cellular — are the common case mid-session, and they resolve on their own.
+   Retrying quietly beats making a participant re-take a photo. Real errors
+   (bad key, bad request) surface immediately without wasted retries. */
+async function callModel(url, headers, body){
+  let lastErr = null;
+
+  for (let attempt = 0; attempt <= CONFIG.RETRY_TRANSIENT; attempt++){
+    if (attempt > 0){
+      $("statusText").textContent = "Connection hiccup. Trying again…";
+      await new Promise(r => setTimeout(r, 1500 * attempt));
+    }
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), CONFIG.REQUEST_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        method: "POST", headers, body: JSON.stringify(body), signal: ctl.signal
+      });
+      clearTimeout(timer);
+
+      if (res.ok) return await res.json();
+
+      let detail = "";
+      try { const e = await res.json(); detail = (e.error && e.error.message) ? " " + e.error.message : ""; }
+      catch(_){}
+      const err = new Error("The description service returned status " + res.status + "." + detail);
+      if (res.status === 429 || res.status >= 500){ lastErr = err; continue; }
+      throw err;
+    } catch(err){
+      clearTimeout(timer);
+      if (err.name === "AbortError"){
+        lastErr = new Error("The request took too long and was stopped.");
+        continue;
+      }
+      if (err instanceof TypeError){ lastErr = err; continue; }
+      throw err;
+    }
+  }
+  throw lastErr || new Error("The description service could not be reached.");
+}
+
+async function generate(isDefault){
+  if (!state.currentImage) return;
+  const style = Object.assign({}, state.currentStyle);
+  const descriptionId = uid("desc");
+  const genIndex = state.descriptions.filter(d => d.imageId === state.currentImage.imageId).length + 1;
+  const userMessage = buildUserMessage(style);
+  const t0 = performance.now();
+
+  setBusy(true, isDefault ? "Writing the description…" : "Writing a new description in your chosen style…");
+  clearError();
+
+  try {
+    const body = {
+      model: CONFIG.MODEL,
+      max_completion_tokens: CONFIG.MAX_OUTPUT_TOKENS,
+      reasoning_effort: CONFIG.REASONING_EFFORT,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: [
+          { type: "text", text: userMessage },
+          { type: "image_url", image_url: {
+              url: "data:image/jpeg;base64," + state.currentImage.base64,
+              detail: CONFIG.IMAGE_DETAIL } }
+        ]}
+      ]
+    };
+    if (CONFIG.VERBOSITY) body.verbosity = CONFIG.VERBOSITY;
+    if (CONFIG.SEED !== null && CONFIG.SEED !== undefined) body.seed = CONFIG.SEED;
+
+    const url = CONFIG.PROXY_URL || CONFIG.ENDPOINT;
+    const headers = { "Content-Type": "application/json" };
+    if (!CONFIG.PROXY_URL){
+      if (!API_KEY) throw new Error("No API key has been entered for this session.");
+      headers["Authorization"] = "Bearer " + API_KEY;
+    }
+
+    const data = await callModel(url, headers, body);
+
+    const choice = (data.choices && data.choices[0]) || null;
+    let text = (choice && choice.message && choice.message.content ? choice.message.content : "").trim();
+    text = text.replace(/^```[a-z]*\s*/i, "").replace(/```$/,"").trim();
+
+    if (!text){
+      if (choice && choice.finish_reason === "length"){
+        throw new Error("The model ran out of its token budget before finishing. Lower the reasoning effort or raise the output token limit.");
+      }
+      throw new Error("The description came back empty.");
+    }
+
+    const record = {
+      descriptionId,
+      sessionId: state.sessionId,
+      participantId: state.participantId,
+      imageId: state.currentImage.imageId,
+      generationIndex: genIndex,
+      isDefault: !!isDefault,
+      style,
+      styleSentence: styleSentence(style),
+      text,
+      model: CONFIG.MODEL,
+      responseModel: data.model || CONFIG.MODEL,
+      responseId: data.id || null,
+      systemFingerprint: data.system_fingerprint || null,
+      seed: CONFIG.SEED,
+      finishReason: choice ? choice.finish_reason : null,
+      reasoningEffort: CONFIG.REASONING_EFFORT,
+      verbosity: CONFIG.VERBOSITY,
+      usage: data.usage || null,
+      systemPrompt: SYSTEM_PROMPT,
+      userMessage,
+      targetWords: LENGTH_TARGETS[style.specificity],
+      isBaselineStyle: isBaselineStyle(style),
+      matchesParticipantBase: sameStyle(style, state.baseStyle),
+      latencyMs: Math.round(performance.now() - t0),
+      preferred: false,
+      createdAt: new Date().toISOString()
+    };
+    state.descriptions.push(record);
+    state.lastGeneratedStyle = Object.assign({}, style);
+
+    renderDescription(record);
+    renderHistory();
+    logEvent("description_generated", {
+      descriptionId, imageId: record.imageId, generationIndex: genIndex,
+      isDefault: !!isDefault, style, latencyMs: record.latencyMs
+    });
+    Sync.push({
+      type: "description",
+      descriptionId, imageId: record.imageId,
+      generationIndex: genIndex, isDefault: !!isDefault, style,
+      targetWords: record.targetWords,
+      researcherImageId: state.currentImage.researcherImageId || "",
+      isBaselineStyle: record.isBaselineStyle,
+      matchesParticipantBase: record.matchesParticipantBase,
+      wordCount: text.trim().split(/\s+/).length,
+      latencyMs: record.latencyMs, model: record.model,
+      responseModel: record.responseModel,
+      finishReason: record.finishReason,
+      userMessage, text
+    });
+    await saveNow();
+    setBusy(false);
+    updatePendingNote();
+    announce("New description ready. Version " + genIndex + ".");
+    setTimeout(() => $("descText").focus(), 120);
+  } catch(err){
+    setBusy(false);
+    showError("The description couldn't be written. " + (err.message || "") + " Try again, or take a new photo.");
+    announce("The description couldn't be written.");
+    logEvent("description_error", { imageId: state.currentImage.imageId, style, message: String(err && err.message) });
+    Sync.push({ type: "event", eventType: "description_error",
+      imageId: state.currentImage.imageId, style, detail: String(err && err.message) });
+    await saveNow();
+  }
+}
+
+/* =================================================================
+   RENDERING
+   ================================================================= */
+function currentVersions(){
+  if (!state.currentImage) return [];
+  return state.descriptions.filter(d => d.imageId === state.currentImage.imageId);
+}
+function renderDescription(rec){
+  $("versionLabel").textContent = "Version " + rec.generationIndex +
+    (rec.isDefault ? " — your starting style" : "");
+  $("descText").textContent = rec.text;
+  $("styleSentence").textContent = "Written with " + rec.styleSentence;
+  $("descText").setAttribute("aria-label", "Description, version " + rec.generationIndex);
+}
+function renderHistory(){
+  const list = currentVersions();
+  const earlier = list.slice(0, -1).reverse();
+  $("historySummary").textContent = "Earlier versions of this description (" + earlier.length + ")";
+  const host = $("historyList");
+  host.textContent = "";
+  if (!earlier.length){
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "Once you change the style, earlier versions will be listed here so you can compare them.";
+    host.appendChild(p);
+    return;
+  }
+  earlier.forEach(rec => {
+    const div = document.createElement("div");
+    div.className = "version";
+    const h = document.createElement("h3");
+    h.textContent = "Version " + rec.generationIndex + (rec.isDefault ? " — your starting style" : "");
+    const s = document.createElement("p");
+    s.className = "muted"; s.style.margin = "0 0 .375rem";
+    s.textContent = rec.styleSentence;
+    const t = document.createElement("p");
+    t.style.margin = "0"; t.textContent = rec.text;
+    div.append(h, s, t);
+    host.appendChild(div);
+  });
+}
+function updatePendingNote(){
+  const note = $("pendingNote"), txt = $("pendingText"), btn = $("regenBtn");
+  const changed = state.lastGeneratedStyle && !sameStyle(state.currentStyle, state.lastGeneratedStyle);
+  if (changed){
+    note.hidden = false;
+    txt.textContent = "You've changed the settings. The description above hasn't been rewritten yet.";
+    btn.textContent = "Write a new description with these settings";
+  } else {
+    note.hidden = true;
+    btn.textContent = "Write the description again with these settings";
+  }
+}
+
+/* ---------- style controls ---------- */
+function buildControls(hostId, prefix, onChange, initial){
+  const host = $(hostId);
+  DIMENSIONS.forEach(dim => {
+    if (!LEVEL_ORDER[dim.key]) LEVEL_ORDER[dim.key] = shuffled(dim.levels.map(l => l.key));
+    const order = LEVEL_ORDER[dim.key].map(k => dim.levels.find(l => l.key === k));
+    const fs = document.createElement("fieldset");
+    const lg = document.createElement("legend");
+    lg.textContent = dim.label;
+    const hint = document.createElement("p");
+    hint.className = "hint"; hint.id = "hint-" + dim.key; hint.textContent = dim.hint;
+    fs.setAttribute("aria-describedby", hint.id);
+    const opts = document.createElement("div");
+    opts.className = "options";
+
+    order.forEach(lvl => {
+      const wrap = document.createElement("label");
+      wrap.className = "opt";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = dim.key;
+      input.value = lvl.key;
+      input.name = prefix + "-" + dim.key;
+      input.id = prefix + "-" + dim.key + "-" + lvl.key;
+      if (initial && initial[dim.key] === lvl.key) input.checked = true;
+      input.addEventListener("change", () => onChange(dim, lvl));
+
+      const sw = document.createElement("span");
+      sw.className = "swatch";
+      const dot = document.createElement("span"); dot.className = "dot"; dot.setAttribute("aria-hidden","true");
+      const txt = document.createElement("span"); txt.className = "txt";
+      const nm = document.createElement("span"); nm.className = "name"; nm.textContent = lvl.label;
+      const bl = document.createElement("span"); bl.className = "desc2"; bl.textContent = lvl.blurb;
+      txt.append(nm, bl);
+      sw.append(dot, txt);
+      wrap.append(input, sw);
+      opts.appendChild(wrap);
+    });
+
+    fs.append(lg, hint, opts);
+    host.appendChild(fs);
+  });
+}
+function onStyleChange(dim, lvl){
+  const from = state.currentStyle[dim.key];
+  if (from === lvl.key) return;
+  state.currentStyle[dim.key] = lvl.key;
+  logEvent("style_changed", {
+    imageId: state.currentImage ? state.currentImage.imageId : null,
+    dimension: dim.key, from, to: lvl.key,
+    styleAfter: Object.assign({}, state.currentStyle),
+    detail: dim.label + ": " + from + " -> " + lvl.key
+  });
+  Sync.push({
+    type: "event", eventType: "style_changed",
+    imageId: state.currentImage ? state.currentImage.imageId : null,
+    dimension: dim.key, from, to: lvl.key,
+    styleAfter: Object.assign({}, state.currentStyle),
+    detail: dim.label + ": " + from + " -> " + lvl.key
+  });
+  updatePendingNote();
+  announce(dim.label + " set to " + lvl.label + ". Choose “Write a new description with these settings” when you're ready.");
+}
+function onSetupStyleChange(dim, lvl){
+  state.pendingBaseStyle[dim.key] = lvl.key;
+  if (DIMENSIONS.every(d => state.pendingBaseStyle[d.key])) $("setupError").textContent = "";
+  announce(dim.label + " set to " + lvl.label + ".");
+}
+
+function syncControlsFromState(){
+  DIMENSIONS.forEach(dim => {
+    const el = $("opt-" + dim.key + "-" + state.currentStyle[dim.key]);
+    if (el) el.checked = true;
+  });
+  updatePendingNote();
+}
+
+/* =================================================================
+   RESEARCHER VIEW
+   ================================================================= */
+let refreshTimer = null;
+let loadedSessions = [];
+
+async function loadSessions(){
+  const keys = await DB.listKeys("descstyle:session:");
+  const out = [];
+  for (const k of keys){
+    const rec = await DB.get(k);
+    if (rec && rec.sessionId) out.push(rec);
+  }
+  out.sort((a,b) => String(b.lastUpdated).localeCompare(String(a.lastUpdated)));
+  loadedSessions = out;
+  renderSessions();
+  $("refreshedAt").textContent = "Last refreshed at " + new Date().toLocaleTimeString() +
+    ". " + out.length + (out.length === 1 ? " session" : " sessions") + " found.";
+}
+function renderSessions(){
+  const host = $("sessionList");
+  host.textContent = "";
+  if (!loadedSessions.length){
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "No sessions yet. They appear here as soon as a participant starts one.";
+    host.appendChild(p);
+    return;
+  }
+  loadedSessions.forEach(s => {
+    const d = document.createElement("details");
+    const sum = document.createElement("summary");
+    sum.textContent = (s.participantId || "(no ID)") + " — " + s.descriptions.length +
+      (s.descriptions.length === 1 ? " description" : " descriptions") +
+      ", " + s.images.length + (s.images.length === 1 ? " photo" : " photos");
+    const body = document.createElement("div");
+
+    const meta = document.createElement("p");
+    meta.className = "muted";
+    meta.textContent = "Session " + s.sessionId + ". Started " + new Date(s.startedAt).toLocaleString() +
+      ". Last updated " + new Date(s.lastUpdated).toLocaleTimeString() + ".";
+    body.appendChild(meta);
+
+    const wrap = document.createElement("div");
+    wrap.className = "tablewrap";
+    const t = document.createElement("table");
+    const cap = document.createElement("caption");
+    cap.textContent = "Descriptions generated in this session, newest last";
+    const thead = document.createElement("thead");
+    const hr = document.createElement("tr");
+    ["Version","Photo","Confidence","Detail","Formality","Interpretation","Preferred","Description"].forEach(h => {
+      const th = document.createElement("th"); th.scope = "col"; th.textContent = h; hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    const tbody = document.createElement("tbody");
+    s.descriptions.forEach(r => {
+      const tr = document.createElement("tr");
+      const cells = [
+        r.generationIndex + (r.isDefault ? " (default)" : ""),
+        r.imageId.slice(-5),
+        r.style.confidence, r.style.specificity, r.style.formality, r.style.subjectivity,
+        r.preferred ? "Yes" : "—",
+        r.text
+      ];
+      cells.forEach((c,i) => {
+        const td = document.createElement("td");
+        td.textContent = c;
+        if (i === 7) td.style.minWidth = "22rem";
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    t.append(cap, thead, tbody);
+    wrap.appendChild(t);
+    body.appendChild(wrap);
+
+    const imgs = document.createElement("p");
+    imgs.style.marginTop = ".75rem";
+    (async () => {
+      for (const im of s.images){
+        const rec = await DB.get(im.storageKey);
+        if (rec && rec.dataUrl){
+          const el = document.createElement("img");
+          el.className = "thumb"; el.src = rec.dataUrl;
+          el.alt = "Photo " + im.imageId.slice(-5) + " taken by " + (s.participantId || "participant");
+          el.style.marginRight = ".5rem";
+          imgs.appendChild(el);
+        }
+      }
+    })();
+    body.appendChild(imgs);
+
+    d.append(sum, body);
+    host.appendChild(d);
+  });
+}
+function csvEscape(v){ return '"' + String(v == null ? "" : v).replace(/"/g,'""') + '"'; }
+function download(name, text, mime){
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportCsv(){
+  const cols = ["session_id","participant_id","image_id","description_id","generation_index","is_default",
+    "created_at","confidence","specificity","formality","subjectivity","preferred","latency_ms",
+    "target_words","word_count","model","response_model","reasoning_effort","description_text"];
+  const rows = [cols.map(csvEscape).join(",")];
+  loadedSessions.forEach(s => s.descriptions.forEach(r => {
+    rows.push([s.sessionId, s.participantId, r.imageId, r.descriptionId, r.generationIndex, r.isDefault,
+      r.createdAt, r.style.confidence, r.style.specificity, r.style.formality, r.style.subjectivity,
+      r.preferred, r.latencyMs, r.targetWords || "", (r.text || "").trim().split(/\s+/).length, r.model, r.responseModel || "", r.reasoningEffort || "", r.text].map(csvEscape).join(","));
+  }));
+  download("descstyle-descriptions.csv", rows.join("\n"), "text/csv");
+  announce("CSV download started.");
+}
+function exportJson(){
+  download("descstyle-sessions.json", JSON.stringify(loadedSessions, null, 2), "application/json");
+  announce("JSON download started.");
+}
+function setAutoRefresh(on){
+  clearInterval(refreshTimer);
+  if (on) refreshTimer = setInterval(loadSessions, CONFIG.AUTO_REFRESH_MS);
+}
+
+/* =================================================================
+   WIRING
+   ================================================================= */
+buildImageList();
+buildControls("controls", "opt", onStyleChange, null);
+buildControls("setupControls", "set", onSetupStyleChange, null);
+
+$("startBtn").addEventListener("click", () => {
+  const pid = $("pid").value.trim();
+  if (!pid){
+    showError("Enter the participant ID your interviewer gave you, then choose “Start session”.");
+    $("pid").focus();
+    return;
+  }
+  if (!CONFIG.PROXY_URL){
+    const k = $("apikey").value.trim();
+    if (!k){
+      showError("This session needs an OpenAI API key. Open “Researcher setup: API key” and enter one.");
+      $("keyBlock").open = true;
+      $("apikey").focus();
+      return;
+    }
+    API_KEY = k;
+    $("apikey").value = "";
+  }
+  clearError();
+  state.participantId = pid;
+  state.sessionId = uid("s");
+  state.startedAt = new Date().toISOString();
+  $("sessionLabel").textContent = "Participant " + pid;
+  logEvent("session_start", { participantId: pid });
+  Sync.push({
+    type: "session", startedAt: state.startedAt,
+    userAgent: navigator.userAgent, language: navigator.language,
+    viewport: window.innerWidth + "x" + window.innerHeight,
+    pixelRatio: window.devicePixelRatio || 1,
+    levelOrder: JSON.stringify(LEVEL_ORDER)
+  });
+  saveNow();
+  showScreen("style", "styleH");
+  announce("Session started for participant " + pid + ".");
+  verifyCollector();
+});
+
+/* Catch a misconfigured collector while the participant is still on the style
+   screen, rather than after they have taken photos that go nowhere. */
+function verifyCollector(){
+  if (!CONFIG.APPS_SCRIPT_URL){
+    $("setupError").textContent =
+      "Setup problem: no study database is configured, so nothing will be saved. Tell your interviewer before continuing.";
+    return;
+  }
+  setTimeout(() => {
+    if (Sync.queue.length || Sync.failed){
+      $("setupError").textContent =
+        "Setup problem: this session is not reaching the study database. Tell your interviewer before continuing.";
+    }
+  }, 8000);
+}
+
+function commitBaseStyle(chosen){
+  const first = !state.baseStyleSet;
+  state.baseStyle = Object.assign({}, chosen);
+  state.pendingBaseStyle = Object.assign({}, chosen);
+  state.baseStyleSet = true;
+  if (!state.currentImage) state.currentStyle = Object.assign({}, chosen);
+
+  const type = first ? "style_setup" : "style_setup_changed";
+  logEvent(type, { style: chosen });
+  Sync.push({
+    type: "event",
+    eventType: type,
+    styleAfter: chosen,
+    detail: isBaselineStyle(chosen) ? "identical to the part-one baseline cell" : ""
+  });
+  saveNow();
+  showScreen("capture", "captureH");
+  announce("Starting style saved: " + styleSentence(chosen));
+}
+
+$("saveStyleBtn").addEventListener("click", () => {
+  const missing = DIMENSIONS.filter(d => !state.pendingBaseStyle[d.key]);
+  if (missing.length){
+    const names = missing.map(d => d.label).join(", ");
+    $("setupError").textContent =
+      "Please choose an option for: " + names + ".";
+    const first = $("set-" + missing[0].key + "-" + LEVEL_ORDER[missing[0].key][0]);
+    if (first) first.focus();
+    announce("Still to choose: " + names + ".");
+    return;
+  }
+  $("setupError").textContent = "";
+  commitBaseStyle(Object.assign({}, state.pendingBaseStyle));
+});
+
+$("editStyleBtn").addEventListener("click", () => {
+  state.pendingBaseStyle = Object.assign({}, state.baseStyle);
+  DIMENSIONS.forEach(dim => {
+    const el = $("set-" + dim.key + "-" + state.baseStyle[dim.key]);
+    if (el) el.checked = true;
+  });
+  showScreen("style", "styleH");
+});
+
+function buildImageList(){
+  const host = $("imageList");
+  host.textContent = "";
+  if (!RESEARCHER_IMAGES.length) return;
+  $("studyPickWrap").hidden = false;
+
+  RESEARCHER_IMAGES.forEach(img => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn btn-secondary";
+    b.textContent = img.label || img.id;
+    b.addEventListener("click", () => useResearcherImage(img));
+    host.appendChild(b);
+  });
+}
+
+async function useResearcherImage(img){
+  clearError();
+  showScreen("result", "resultH");
+  setBusy(true, "Loading the study image…");
+  try {
+    const res = await fetch(img.src);
+    if (!res.ok) throw new Error("Status " + res.status + ".");
+    const blob = await res.blob();
+    const file = new File([blob], img.id + ".jpg", { type: blob.type || "image/jpeg" });
+    await handleFile(file, "researcher", img);
+  } catch(err){
+    setBusy(false);
+    showError("That study image could not be loaded. " + (err.message || "") +
+      " Tell your interviewer, or take a photo instead.");
+    announce("The study image could not be loaded.");
+  }
+}
+
+$("toStudyImages").addEventListener("click", () => showScreen("images", "imagesH"));
+$("backFromImages").addEventListener("click", () => showScreen("capture", "captureH"));
+
+$("camInput").addEventListener("change", e => { handleFile(e.target.files[0], "camera"); e.target.value = ""; });
+$("libInput").addEventListener("change", e => { handleFile(e.target.files[0], "library"); e.target.value = ""; });
+
+$("regenBtn").addEventListener("click", () => generate(false));
+
+$("resetBtn").addEventListener("click", () => {
+  state.currentStyle = Object.assign({}, state.baseStyle);
+  syncControlsFromState();
+  logEvent("style_reset", { imageId: state.currentImage ? state.currentImage.imageId : null });
+  Sync.push({ type: "event", eventType: "style_reset",
+    imageId: state.currentImage ? state.currentImage.imageId : null,
+    styleAfter: Object.assign({}, state.currentStyle),
+    detail: "back to their starting style" });
+  announce("Style set back to your starting settings: " + styleSentence(state.baseStyle));
+});
+
+$("preferBtn").addEventListener("click", () => {
+  const versions = currentVersions();
+  const latest = versions[versions.length - 1];
+  if (!latest) return;
+  state.descriptions.forEach(d => { if (d.imageId === latest.imageId) d.preferred = false; });
+  latest.preferred = true;
+  logEvent("preference_confirmed", {
+    descriptionId: latest.descriptionId, imageId: latest.imageId, style: latest.style
+  });
+  Sync.push({ type: "preference", descriptionId: latest.descriptionId,
+    imageId: latest.imageId, style: latest.style,
+    detail: "version " + latest.generationIndex + " of " + versions.length });
+  saveNow();
+  announce("Saved version " + latest.generationIndex + " as your preferred style: " + latest.styleSentence);
+});
+
+$("newPhotoBtn").addEventListener("click", () => showScreen("capture", "captureH"));
+$("backToDesc").addEventListener("click", () => showScreen("result", "resultH"));
+$("retrySync").addEventListener("click", () => { clearError(); state.warnedSync = false; Sync.failed = false; Sync.flush(); saveNow(); });
+
+$("toResearcher").addEventListener("click", () => {
+  showScreen("researcher", "resH");
+  $("storageNote").textContent = CONFIG.APPS_SCRIPT_URL
+    ? "Live session data goes to the Google Sheet — open that to follow along. This view shows only what this device has captured."
+    : "No collector URL is configured, so nothing is being uploaded. This view shows only what this device has captured.";
+  loadSessions();
+  setAutoRefresh($("autoRefresh").checked);
+});
+$("backFromResearcher").addEventListener("click", () => {
+  setAutoRefresh(false);
+  showScreen(state.sessionId ? (state.currentImage ? "result" : "capture") : "setup",
+             state.sessionId ? (state.currentImage ? "resultH" : "captureH") : "setupH");
+});
+$("refreshBtn").addEventListener("click", loadSessions);
+$("autoRefresh").addEventListener("change", e => setAutoRefresh(e.target.checked));
+$("exportCsv").addEventListener("click", exportCsv);
+$("exportJson").addEventListener("click", exportJson);
+
+/* Text size */
+const SIZES = { sizeA:1, sizeB:1.18, sizeC:1.38 };
+Object.keys(SIZES).forEach(id => {
+  $(id).addEventListener("click", () => {
+    document.documentElement.style.setProperty("--step", SIZES[id]);
+    Object.keys(SIZES).forEach(o => $(o).setAttribute("aria-pressed", o === id ? "true" : "false"));
+    announce("Text size changed.");
+  });
+});
+
+/* Enter key on the participant ID field starts the session */
+$("pid").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); $("startBtn").click(); } });
+
+/* Direct link to researcher tools */
+if (location.hash === "#researcher") $("toResearcher").click();
+
+updateSyncPill();
+
+/* The key field only appears when there is no proxy to hide the key behind. */
+if (!CONFIG.PROXY_URL) $("keyBlock").hidden = false;
+
+/* pagehide, not beforeunload: iOS Safari fires beforeunload unreliably.
+   sendBeacon survives the page closing, unlike fetch. Photo records are too
+   large for the 64KB beacon limit, so they are the one thing that cannot be
+   rescued here — everything else in the queue goes with the final flush. */
+window.addEventListener("pagehide", () => {
+  if (!state.sessionId || !CONFIG.APPS_SCRIPT_URL || !navigator.sendBeacon) return;
+
+  const stamp = r => {
+    r.recordId = r.recordId || uid("r");
+    r.sessionId = state.sessionId;
+    r.participantId = state.participantId;
+    r.clientTime = r.clientTime || new Date().toISOString();
+    if (CONFIG.SHARED_SECRET) r.secret = CONFIG.SHARED_SECRET;
+    return r;
+  };
+
+  const pending = Sync.queue.filter(r => r.type !== "photo");
+  const records = pending.concat([stamp({
+    type: "event", eventType: "session_end",
+    detail: state.descriptions.length + " descriptions, " + state.images.length + " photos"
+  })]);
+
+  try {
+    navigator.sendBeacon(
+      CONFIG.APPS_SCRIPT_URL,
+      new Blob([JSON.stringify({ records })], { type: "text/plain;charset=utf-8" })
+    );
+  } catch(e){ /* page is going away; nothing further to do */ }
+});
+</script>
+</body>
+</html>
