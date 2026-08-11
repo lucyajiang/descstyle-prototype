@@ -452,9 +452,11 @@ const CONFIG = {
   REQUEST_TIMEOUT_MS: 90000,   // a hung request otherwise blocks the session forever
   RETRY_TRANSIENT: 2,          // extra attempts on 429 / 5xx / network drop
 
-  /* --- Auth. Prefer the proxy: it keeps the key off participants' phones.
-         If PROXY_URL is empty the page asks the researcher for a key at setup. --- */
-  PROXY_URL: "",             // e.g. "https://descstyle-proxy.yourname.workers.dev"
+  /* --- Auth. USE_COLLECTOR_PROXY routes model calls through the Apps Script,
+         which holds the key server-side, so nothing secret lives in this file.
+         Set it to false only to fall back to entering a key by hand. --- */
+  USE_COLLECTOR_PROXY: true,
+  PROXY_URL: "",             // optional separate proxy; ignored when the above is true
 
   /* --- Study database: the Apps Script /exec URL --- */
   APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyZf0K9t16nuZ_5ta2hcPdls_LfkeTfetSKS5rOgwXTRyQSlnF_Sj47Vepl3yXN31Jt/exec",
@@ -485,8 +487,13 @@ const RESEARCHER_IMAGES = [
    to Drive. The row still records which one was used. */
 const UPLOAD_RESEARCHER_IMAGES = false;
 
-/* Held in memory only. Never written to the database, never logged. */
+/* Held in memory only. Never written to the database, never logged.
+   Unused when the collector proxy is on. */
 let API_KEY = "";
+
+function usingCollectorProxy(){
+  return !!(CONFIG.USE_COLLECTOR_PROXY && CONFIG.APPS_SCRIPT_URL);
+}
 
 /* =================================================================
    STYLE DIMENSIONS — mirrors the survey's four dimensions.
@@ -765,7 +772,8 @@ const state = {
   currentStyle: Object.assign({}, DEFAULT_STYLE),
   lastGeneratedStyle: null,
   generating: false,
-  warnedSync: false
+  warnedSync: false,
+  pidFromLink: false
 };
 
 const $ = id => document.getElementById(id);
@@ -1014,7 +1022,18 @@ async function callModel(url, headers, body){
       });
       clearTimeout(timer);
 
-      if (res.ok) return await res.json();
+      if (res.ok){
+        const data = await res.json();
+        /* Apps Script always replies 200; a failure arrives as an error body
+           carrying the upstream status, so re-raise it here. */
+        if (data && data.error){
+          const status = data.error.status || 0;
+          const e2 = new Error(data.error.message || "The description service failed.");
+          if (status === 429 || status >= 500){ lastErr = e2; continue; }
+          throw e2;
+        }
+        return data;
+      }
 
       let detail = "";
       try { const e = await res.json(); detail = (e.error && e.error.message) ? " " + e.error.message : ""; }
@@ -1064,14 +1083,25 @@ async function generate(isDefault){
     if (CONFIG.VERBOSITY) body.verbosity = CONFIG.VERBOSITY;
     if (CONFIG.SEED !== null && CONFIG.SEED !== undefined) body.seed = CONFIG.SEED;
 
-    const url = CONFIG.PROXY_URL || CONFIG.ENDPOINT;
-    const headers = { "Content-Type": "application/json" };
-    if (!CONFIG.PROXY_URL){
-      if (!API_KEY) throw new Error("No API key has been entered for this session.");
-      headers["Authorization"] = "Bearer " + API_KEY;
+    let url, headers, payload;
+    if (usingCollectorProxy()){
+      /* text/plain keeps this a "simple" cross-origin request; Apps Script does
+         not answer the CORS preflight that application/json would trigger. */
+      url = CONFIG.APPS_SCRIPT_URL;
+      headers = { "Content-Type": "text/plain;charset=utf-8" };
+      payload = { type: "openai", body };
+      if (CONFIG.SHARED_SECRET) payload.secret = CONFIG.SHARED_SECRET;
+    } else {
+      url = CONFIG.PROXY_URL || CONFIG.ENDPOINT;
+      headers = { "Content-Type": "application/json" };
+      if (!CONFIG.PROXY_URL){
+        if (!API_KEY) throw new Error("No API key has been entered for this session.");
+        headers["Authorization"] = "Bearer " + API_KEY;
+      }
+      payload = body;
     }
 
-    const data = await callModel(url, headers, body);
+    const data = await callModel(url, headers, payload);
 
     const choice = (data.choices && data.choices[0]) || null;
     let text = (choice && choice.message && choice.message.content ? choice.message.content : "").trim();
@@ -1436,7 +1466,7 @@ $("startBtn").addEventListener("click", () => {
     $("pid").focus();
     return;
   }
-  if (!CONFIG.PROXY_URL){
+  if (!usingCollectorProxy() && !CONFIG.PROXY_URL){
     const k = $("apikey").value.trim();
     if (!k){
       showError("This session needs an OpenAI API key. Open “Researcher setup: API key” and enter one.");
@@ -1453,12 +1483,14 @@ $("startBtn").addEventListener("click", () => {
   state.startedAt = new Date().toISOString();
   $("sessionLabel").textContent = "Participant " + pid;
   logEvent("session_start", { participantId: pid });
+  state.pidEdited = !!(state.pidFromLink && pid !== $("pid").defaultValue);
   Sync.push({
     type: "session", startedAt: state.startedAt,
     userAgent: navigator.userAgent, language: navigator.language,
     viewport: window.innerWidth + "x" + window.innerHeight,
     pixelRatio: window.devicePixelRatio || 1,
-    levelOrder: JSON.stringify(LEVEL_ORDER)
+    levelOrder: JSON.stringify(LEVEL_ORDER),
+    pidSource: state.pidFromLink ? "link" : "typed"
   });
   saveNow();
   showScreen("style", "styleH");
@@ -1639,13 +1671,35 @@ Object.keys(SIZES).forEach(id => {
 /* Enter key on the participant ID field starts the session */
 $("pid").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); $("startBtn").click(); } });
 
+/* ---------------------------------------------------------------------
+   Participant ID can be pre-filled from the link: ...?pid=P07
+   Sanitised hard, because this value ends up in a filename and a sheet.
+   The field stays editable so a wrong ID can be corrected in the room.
+   --------------------------------------------------------------------- */
+(function prefillParticipantId(){
+  let raw = "";
+  try { raw = new URLSearchParams(location.search).get("pid") || ""; }
+  catch(e){ return; }
+  if (!raw) return;
+
+  const clean = raw.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 24);
+  if (!clean) return;
+
+  $("pid").value = clean;
+  state.pidFromLink = true;
+  $("pidHint").textContent =
+    "Filled in from your link. Check it reads " + clean.split("").join(" ") +
+    ", then choose Start session.";
+  setTimeout(() => $("startBtn").focus(), 60);
+})();
+
 /* Direct link to researcher tools */
 if (location.hash === "#researcher") $("toResearcher").click();
 
 updateSyncPill();
 
-/* The key field only appears when there is no proxy to hide the key behind. */
-if (!CONFIG.PROXY_URL) $("keyBlock").hidden = false;
+/* The key field only appears when no proxy is holding the key for us. */
+if (!usingCollectorProxy() && !CONFIG.PROXY_URL) $("keyBlock").hidden = false;
 
 /* pagehide, not beforeunload: iOS Safari fires beforeunload unreliably.
    sendBeacon survives the page closing, unlike fetch. Photo records are too
