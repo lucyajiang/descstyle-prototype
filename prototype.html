@@ -15,7 +15,7 @@
   --surface:#eef1f4;
   --surface-2:#e2e7ec;
   --ink:#12161b;
-  --ink-2:#454d57;
+  --ink-2:#3d444d;
   --line:#b9c1ca;
   --line-strong:#6d7681;
   --brand:#1b4db1;
@@ -83,8 +83,11 @@ h1,h2,h3{line-height:1.25;margin:0 0 .5rem;font-weight:700;letter-spacing:-0.01e
 h1{font-size:1.5rem}
 h2{font-size:1.25rem}
 h3{font-size:1.0625rem}
-p{margin:0 0 .75rem}
+p{margin:0 0 1.6rem;max-width:70ch}
 .muted{color:var(--ink-2);font-size:.9375rem}
+/* 1.4.8 asks for paragraph spacing of at least 1.5x line spacing. Tight
+   groupings (hints, single-line notes) opt out where they are not body text. */
+.tight{margin-bottom:.5rem}
 
 /* Masthead */
 .mast{
@@ -128,6 +131,12 @@ p{margin:0 0 .75rem}
 
 /* Fields */
 label.field{display:block;font-weight:650;margin-bottom:.375rem}
+textarea{
+  width:100%;padding:.625rem .75rem;font:inherit;line-height:1.5;
+  color:var(--ink);background:var(--paper);
+  border:2px solid var(--line-strong);border-radius:var(--radius);
+  resize:vertical;min-height:8rem;
+}
 input[type=text],
 input[type=password]{
   width:100%;min-height:var(--tap);padding:.625rem .75rem;font:inherit;
@@ -165,33 +174,37 @@ fieldset{
 legend{font-weight:700;padding:0 .375rem;font-size:1.0625rem}
 fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:.25rem 0 .75rem}
 .options{display:flex;flex-direction:column;gap:.5rem}
-.opt{position:relative;display:block}
+.opt{
+  border:2px solid var(--line-strong);border-radius:var(--radius);
+  background:var(--paper);overflow:hidden;
+}
+.optlabel{position:relative;display:block;cursor:pointer}
 .opt input[type=radio]{
   position:absolute;opacity:0;width:100%;height:100%;margin:0;
   top:0;left:0;cursor:pointer;
 }
 .swatch{
-  display:flex;align-items:flex-start;gap:.625rem;
+  display:flex;align-items:center;gap:.625rem;
   min-height:var(--tap);padding:.625rem .75rem;
-  border:2px solid var(--line-strong);border-radius:var(--radius);
-  background:var(--paper);
 }
 .swatch .dot{
   flex:0 0 auto;width:1.375rem;height:1.375rem;margin-top:.125rem;
   border:2px solid var(--line-strong);border-radius:50%;background:var(--paper);
 }
-.opt input[type=radio]:checked + .swatch{
+.opt.is-checked{
   border-color:var(--brand);
   background:var(--surface-2);
   box-shadow:inset 0 0 0 1px var(--brand);
 }
-.opt input[type=radio]:checked + .swatch .dot{
+.opt.is-checked .dot{
   border-color:var(--brand);
   background:radial-gradient(circle, var(--brand) 0 45%, var(--paper) 46% 100%);
 }
-.swatch .txt{display:block}
 .swatch .name{display:block;font-weight:650}
-.swatch .desc2{display:block;font-size:.875rem;color:var(--ink-2)}
+.opt .desc2{
+  margin:0;padding:0 .75rem .625rem 2.75rem;
+  font-size:.875rem;color:var(--ink-2);max-width:none;
+}
 
 /* Photo preview */
 .photo{
@@ -211,7 +224,7 @@ details > div{padding:0 .875rem .875rem}
 
 /* Status regions */
 .status{
-  display:flex;align-items:center;gap:.5rem;min-height:2.5rem;
+  display:flex;align-items:center;gap:.5rem;min-height:var(--tap);
   padding:.625rem .75rem;border-radius:var(--radius);
   background:var(--surface);border:1px solid var(--line);
   font-weight:650;margin-bottom:1rem;
@@ -250,7 +263,7 @@ details > div{padding:0 .875rem .875rem}
 /* Text size control */
 .sizectl{display:flex;gap:.375rem;align-items:center}
 .sizectl button{
-  min-height:2.25rem;min-width:2.75rem;font:inherit;font-weight:700;
+  min-height:var(--tap);min-width:var(--tap);font:inherit;font-weight:700;
   background:var(--paper);color:var(--ink);
   border:2px solid var(--line-strong);border-radius:8px;cursor:pointer;
 }
@@ -277,9 +290,9 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <p class="muted" id="sessionLabel" style="margin:0">Not started</p>
     </div>
     <div class="sizectl" role="group" aria-label="Text size">
-      <button type="button" id="sizeA" aria-pressed="true">A</button>
-      <button type="button" id="sizeB" aria-pressed="false" style="font-size:1.15rem">A</button>
-      <button type="button" id="sizeC" aria-pressed="false" style="font-size:1.35rem">A</button>
+      <button type="button" id="sizeA" aria-pressed="true" aria-label="Normal text size"><span aria-hidden="true">A</span></button>
+      <button type="button" id="sizeB" aria-pressed="false" aria-label="Larger text size" style="font-size:1.15rem"><span aria-hidden="true">A</span></button>
+      <button type="button" id="sizeC" aria-pressed="false" aria-label="Largest text size" style="font-size:1.35rem"><span aria-hidden="true">A</span></button>
     </div>
   </header>
 
@@ -296,7 +309,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
 
       <div class="card">
         <label class="field" for="pid">Participant ID</label>
-        <p class="muted" id="pidHint" style="margin:0 0 .5rem">Your interviewer will give you this. Letters and numbers, for example P07.</p>
+        <p class="muted tight" id="pidHint">Your interviewer will give you this. Letters and numbers, for example P07.</p>
         <input type="text" id="pid" name="pid" aria-describedby="pidHint"
                autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go">
       </div>
@@ -311,12 +324,13 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       </details>
 
       <button type="button" class="btn btn-primary" id="startBtn">Start session</button>
-      <p style="margin-top:1.5rem"><button type="button" class="btn btn-quiet" id="toResearcher">Researcher tools</button></p>
     </section>
 
     <!-- ========================= STYLE SETUP ========================= -->
     <section id="screen-style" aria-labelledby="styleH" hidden>
+      <p class="muted tight">Step 1 of 4</p>
       <h1 id="styleH" tabindex="-1">Set up your description style</h1>
+      <p class="muted" id="styleWho"></p>
       <p>Before you take any photos, choose how you'd like descriptions written. Nothing is selected yet — pick one option in each of the four groups. These become your starting settings for every photo, and you can change them at any point during the session.</p>
       <div id="setupError" class="alertbox" role="alert"></div>
 
@@ -328,6 +342,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
 
     <!-- =========================== CAPTURE =========================== -->
     <section id="screen-capture" aria-labelledby="captureH" hidden>
+      <p class="muted tight">Step 4 of 4</p>
       <h1 id="captureH" tabindex="-1">Take a photo</h1>
       <p>Point your camera at anything nearby that you'd normally want described. You can take as many photos as you like during the session.</p>
 
@@ -346,8 +361,23 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <p><button type="button" class="btn btn-quiet" id="editStyleBtn">Change my starting style settings</button></p>
     </section>
 
+    <!-- ===================== SURVEY COMPARISON ======================= -->
+    <section id="screen-survey" aria-labelledby="surveyH" hidden>
+      <p class="muted tight">Step 2 of 4</p>
+      <h1 id="surveyH" tabindex="-1">Your earlier answers</h1>
+      <p>You answered some of these questions in the survey you took before this session. Here's what you said then, next to what you just chose.</p>
+
+      <div id="surveyCompare"></div>
+
+      <p>You can keep what you just chose, or switch to your survey answers.</p>
+      <button type="button" class="btn btn-primary" id="keepNewBtn">Keep what I just chose</button>
+      <button type="button" class="btn btn-secondary" id="useSurveyBtn">Use my survey answers instead</button>
+      <button type="button" class="btn btn-quiet" id="backToStyleBtn">Go back and change my settings</button>
+    </section>
+
     <!-- ======================== STUDY IMAGES ========================= -->
     <section id="screen-images" aria-labelledby="imagesH" hidden>
+      <p class="muted tight">Step 3 of 4</p>
       <h1 id="imagesH" tabindex="-1">Study images</h1>
       <p>Your interviewer will tell you which one to choose.</p>
       <div id="imageList"></div>
@@ -357,11 +387,28 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <button type="button" class="btn btn-secondary" id="toOwnPhotos">Take my own photos</button>
     </section>
 
+    <!-- ========================== FREE TEXT ========================== -->
+    <section id="screen-freeform" aria-labelledby="freeformH" hidden>
+      <h1 id="freeformH" tabindex="-1">Describe your ideal style in your own words</h1>
+      <p>Forget the four settings for a moment. In your own words, how would you want an image description written for you? Say as much or as little as you like — you can use dictation instead of typing.</p>
+
+      <div class="card">
+        <label class="field" for="freeformText">Your description style</label>
+        <p class="muted tight" id="freeformHint">For example, what it should include or leave out, how long it should be, and how it should sound.</p>
+        <textarea id="freeformText" rows="6" aria-describedby="freeformHint"></textarea>
+      </div>
+
+      <div id="freeformError" class="alertbox" role="alert"></div>
+
+      <button type="button" class="btn btn-primary" id="freeformGoBtn">Write a description this way</button>
+      <button type="button" class="btn btn-secondary" id="freeformBackBtn">Back to the description</button>
+    </section>
+
     <!-- =========================== RESULT ============================ -->
     <section id="screen-result" aria-labelledby="resultH" hidden>
       <h1 id="resultH" tabindex="-1">Your description</h1>
 
-      <div id="statusRow" class="status" hidden>
+      <div id="statusRow" class="status" role="status" aria-live="polite" hidden>
         <span class="spinner" aria-hidden="true"></span>
         <span id="statusText">Writing the description…</span>
       </div>
@@ -382,13 +429,14 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <form id="styleForm" novalidate autocomplete="off">
         <div id="controls"></div>
 
-        <div id="pendingNote" class="status" hidden>
+        <div id="pendingNote" class="status" role="status" aria-live="polite" hidden>
           <span id="pendingText"></span>
         </div>
 
         <button type="button" class="btn btn-primary" id="regenBtn">Write a new description with these settings</button>
         <button type="button" class="btn btn-secondary" id="resetBtn">Go back to my starting style</button>
         <button type="button" class="btn btn-secondary" id="preferBtn">Save this as the style I prefer</button>
+        <button type="button" class="btn btn-secondary" id="toFreeformBtn">Describe a style in my own words</button>
       </form>
 
       <h2 style="margin-top:1.75rem">Earlier versions</h2>
@@ -399,36 +447,26 @@ caption{text-align:left;padding:.625rem;font-weight:700}
 
       <button type="button" class="btn btn-secondary" id="newPhotoBtn">Choose another image or photo</button>
 
+      <h2 style="margin-top:1.75rem">Finishing up</h2>
+      <p class="muted tight">When your interviewer says you're done, use this. It saves a copy of everything from this session.</p>
+      <button type="button" class="btn btn-secondary" id="endBtn">End session</button>
+      <div id="endConfirm" hidden>
+        <p id="endConfirmText">This ends the session and saves everything. You won't be able to make more descriptions afterwards.</p>
+        <button type="button" class="btn btn-primary" id="endYesBtn">Yes, end the session</button>
+        <button type="button" class="btn btn-secondary" id="endNoBtn">No, keep going</button>
+      </div>
+
       <div class="syncrow">
         <span>Saved to study database: <span class="pill" id="syncPill">Saving…</span></span>
         <button type="button" class="btn btn-quiet" id="retrySync" hidden>Try saving again</button>
       </div>
     </section>
 
-    <!-- ========================== RESEARCHER ========================= -->
-    <section id="screen-researcher" aria-labelledby="resH" hidden>
-      <h1 id="resH" tabindex="-1">Researcher tools</h1>
-      <p class="muted" id="storageNote"></p>
-
-      <div class="card">
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-          <button type="button" class="btn btn-secondary" id="refreshBtn" style="width:auto">Refresh now</button>
-          <label style="display:flex;align-items:center;gap:.5rem;min-height:var(--tap);font-weight:650">
-            <input type="checkbox" id="autoRefresh" checked style="width:1.25rem;height:1.25rem">
-            Refresh automatically every 10 seconds
-          </label>
-        </div>
-        <p class="muted" id="refreshedAt" style="margin:.75rem 0 0">Not loaded yet.</p>
-      </div>
-
-      <h2>Sessions</h2>
-      <div id="sessionList"></div>
-
-      <h2>Export</h2>
-      <button type="button" class="btn btn-secondary" id="exportCsv">Download all descriptions as CSV</button>
-      <button type="button" class="btn btn-secondary" id="exportJson">Download the full log as JSON</button>
-
-      <p style="margin-top:1.5rem"><button type="button" class="btn btn-quiet" id="backFromResearcher">Back to the participant view</button></p>
+    <!-- ========================== FINISHED =========================== -->
+    <section id="screen-done" aria-labelledby="doneH" hidden>
+      <h1 id="doneH" tabindex="-1">Session complete</h1>
+      <p id="doneSummary">Everything from this session has been saved.</p>
+      <p class="muted">You can close this page now. Thank you.</p>
     </section>
 
   </main>
@@ -459,12 +497,11 @@ const CONFIG = {
   PROXY_URL: "",             // optional separate proxy; ignored when the above is true
 
   /* --- Study database: the Apps Script /exec URL --- */
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyZf0K9t16nuZ_5ta2hcPdls_LfkeTfetSKS5rOgwXTRyQSlnF_Sj47Vepl3yXN31Jt/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyWwygc1Pq5DY4Ygnc9THC9fvdN5Kzr8gfyCsq6wHruS45HA43_XxmBI5pHYtFHwVo3/exec",
   SHARED_SECRET: "",         // must match SHARED_SECRET in the Apps Script, or leave both empty
   SHARED: true,              // also mirror to artifact storage when it exists
   MAX_IMAGE_DIM: 1280,
   JPEG_QUALITY: 0.72,
-  AUTO_REFRESH_MS: 10000,
   SCHEMA: 1
 };
 
@@ -491,6 +528,30 @@ const UPLOAD_RESEARCHER_IMAGES = false;
    Unused when the collector proxy is on. */
 let API_KEY = "";
 
+/* Per-participant survey answers, so the session can show people what they
+   said earlier. Optional: drop a survey.json next to this page, shaped
+     { "P07": { "confidence":"assertive", "specificity":"maximal",
+                "formality":"conversational", "subjectivity":"objective" } }
+   A missing file, a missing participant, or a partial entry simply turns the
+   reminder off for that session. */
+const SURVEY_ANSWERS_URL = "survey.json";
+
+async function loadSurveyAnswers(pid){
+  try {
+    const res = await fetch(SURVEY_ANSWERS_URL, { cache: "no-store" });
+    if (!res.ok) return null;
+    const all = await res.json();
+    const mine = all[pid] || all[pid.toUpperCase()];
+    if (!mine) return null;
+    const clean = {};
+    DIMENSIONS.forEach(d => {
+      const v = mine[d.key];
+      if (v && d.levels.some(l => l.key === v)) clean[d.key] = v;
+    });
+    return Object.keys(clean).length ? clean : null;
+  } catch(e){ return null; }
+}
+
 function usingCollectorProxy(){
   return !!(CONFIG.USE_COLLECTOR_PROXY && CONFIG.APPS_SCRIPT_URL);
 }
@@ -499,56 +560,67 @@ function usingCollectorProxy(){
    STYLE DIMENSIONS — mirrors the survey's four dimensions.
    Baseline cell = assertive / moderate / professional / objective.
    ================================================================= */
+/* Definitions are the survey's wording, verbatim. Each dimension keeps its
+   lead sentence; each level keeps its own clause from that definition, minus
+   the "An assertive description" opener — a screen reader reads the level name
+   immediately before the clause, so repeating it there is noise.
+
+   One deliberate deviation: the survey defines moderate as "adds more key
+   details and background information", which is relative to an unstated
+   referent. That works in a paragraph read top to bottom; it does not work
+   here, where each clause stands alone and the options are shuffled. Moderate
+   is therefore stated absolutely, using the same vocabulary. */
 const DIMENSIONS = [
   {
     key: "confidence",
     label: "Confidence",
-    hint: "How certain the description sounds about what it says.",
+    hint: "Confidence refers to how certain the description sounds about what it reports.",
     levels: [
       { key:"assertive", label:"Assertive", promptLabel:"Assertive",
-        blurb:"States things directly, with no uncertainty." },
+        blurb:"Directly states what the AI model thinks is in the image." },
       { key:"hedging", label:"Hedging", promptLabel:"Hedging",
-        blurb:"Flags uncertainty throughout." }
+        blurb:"States things in a more uncertain way." }
     ]
   },
   {
     key: "specificity",
-    label: "Level of detail",
-    hint: "How much the description covers.",
+    label: "Specificity",
+    hint: "Specificity refers to how much detail the description includes.",
     levels: [
       { key:"minimal", label:"Minimal", promptLabel:"Minimal",
-        blurb:"Just the main subject and its general layout." },
+        blurb:"Mentions only the main subject and general layout." },
       { key:"moderate", label:"Moderate", promptLabel:"Moderate",
-        blurb:"Main subject, layout, background, and a few key details." },
+        blurb:"Mentions the main subject, general layout, key details, and background information." },
       { key:"maximal", label:"Maximal", promptLabel:"Maximal",
-        blurb:"Everything notable, including fine details and any text." }
+        blurb:"Provides details about all notable attributes." }
     ]
   },
   {
     key: "formality",
     label: "Formality",
-    hint: "How formal or casual the wording is.",
+    hint: "Formality refers to the tone and word choice of the description.",
     levels: [
       { key:"professional", label:"Professional", promptLabel:"Professional",
-        blurb:"Complete sentences in a neutral, report-like register." },
+        blurb:"Uses neutral, polished language." },
       { key:"conversational", label:"Conversational", promptLabel:"Conversational",
-        blurb:"Like a friend casually telling you about the picture." }
+        blurb:"Sounds more casual, like a friend describing what they see." }
     ]
   },
   {
     key: "subjectivity",
-    label: "Interpretation",
-    hint: "Whether the description sticks to what is visible or adds its own read on the scene.",
+    label: "Subjectivity",
+    hint: "Subjectivity refers to how much interpretation or judgment the description includes.",
     levels: [
       { key:"objective", label:"Objective", promptLabel:"Objective",
-        blurb:"Only what is observable. No inferences or judgments." },
+        blurb:"Reports only what is observable in the photo." },
       { key:"interpretive", label:"Interpretive", promptLabel:"Interpretive",
-        blurb:"Adds mood, purpose, and what is going on." },
+        blurb:"Interprets what the mood or activity might be." },
       { key:"opinionated", label:"Opinionated", promptLabel:"Opinionated",
-        blurb:"Adds opinions about how things look." }
+        blurb:"Adds aesthetic judgments." }
     ]
   }
 ];
+
 /* Option order within each dimension is shuffled once per session, matching the
    survey's per-participant level shuffle. A fixed order is itself a nudge:
    whatever sits first gets picked more often. The order used is logged with the
@@ -562,6 +634,16 @@ function shuffled(arr){
   return a;
 }
 const LEVEL_ORDER = {};
+
+/* Level order within a dimension IS shuffled (see LEVEL_ORDER): whichever
+   level sits first gets picked more often, and that would bias the answer.
+   Dimension order is fixed. Every dimension gets answered before the
+   participant can continue, so the order only affects how much attention each
+   group gets, not which level is chosen — and a consistent order makes the
+   interview easier to facilitate and transcripts easier to compare. The order
+   used is recorded either way. */
+const SHUFFLE_DIMENSION_ORDER = false;
+const DIMENSION_ORDER = [];
 
 const DEFAULT_STYLE = { confidence:"assertive", specificity:"moderate", formality:"professional", subjectivity:"objective" };
 
@@ -624,6 +706,32 @@ Conversational: "So there's a group of four people standing around a big table w
 Interpretive: "A group of four people gather together around a large table for a birthday celebration, with cake and food spread out in front of them. A banner behind them reads 'Happy Birthday.' They are smiling broadly, and a large amount of colorful confetti fills the air around them in a festive scene."
 
 Opinionated: "A charming scene shows a group of four people gathering around a large table with an appetizing spread of cake and food in a warm celebration. A gorgeous banner behind them reads 'Happy Birthday.' They are smiling, with wonderfully colorful confetti filling the air around them."`;
+
+/* Free-text mode. The Role and Rules blocks are copied verbatim from the
+   prompt above so accuracy constraints — no guessed identities, no assumed age
+   or gender, no breeds or brands, exact counts, verbatim transcription — still
+   apply. Only the style section is replaced by the participant's own words.
+   There is deliberately no length target: their instructions govern length. */
+const SYSTEM_PROMPT_FREEFORM = `Role: You are a professional describer writing image descriptions for blind and low vision people.
+
+Primary directive: Write ONE description of the attached image, in the style the user describes in their own words in the user message. Follow their stated preferences as closely as you can while keeping every rule below.
+
+Rules:
+- Describe only what is actually visible in the image. Do not invent or assume details that are not shown. 
+- Do not guess the identities of people or named entities unless their names are legibly shown. Do not assume the age or gender of people. Do not name breeds, brands, or models unless legibly shown. Only describe visible attributes.
+- Transcribe any clearly visible text exactly as it appears, unless the user has asked for something so brief that transcription would not fit.
+- Name each object with the most common everyday term for it and use the same term throughout.
+- State exact counts for countable subjects or objects. If ten or fewer, do not use 'several,' 'many,' or 'multiple' where a number is determinable. If more than ten, use 'many.'
+- Do not begin with "Image of" or "Photo of." Start with the content.
+- Output only the description itself: no preamble, no headings, no markdown, no bullet points, and no commentary on the instructions you were given.
+
+If the user's instructions conflict with a rule above, follow the rule and otherwise honour their request as closely as possible.`;
+
+function buildFreeformMessage(text){
+  return "Describe the attached image in this style, in my own words:\n\n" +
+         text.trim() +
+         "\n\nWrite a single description following those preferences.";
+}
 
 /* User message: the four dimension settings plus the target length. */
 function buildUserMessage(style){
@@ -852,7 +960,7 @@ function updateSyncPill(){
 /* =================================================================
    SCREENS
    ================================================================= */
-const SCREENS = ["setup","style","capture","images","result","researcher"];
+const SCREENS = ["setup","style","survey","images","capture","freeform","result","done"];
 function showScreen(name, focusId){
   SCREENS.forEach(s => { $("screen-" + s).hidden = (s !== name); });
   const target = $(focusId);
@@ -958,6 +1066,9 @@ async function handleFile(file, source, researcher){
     state.currentImage = Object.assign({ base64: img.base64, dataUrl: img.dataUrl }, rec);
     state.images.push(rec);
     $("preview").src = img.dataUrl;
+    $("preview").alt = researcher
+      ? "Study image: " + (researcher.label || researcher.id) + ". A written description of it appears below."
+      : "The photo you just took. A written description of it appears below.";
 
     // Upload the image itself before generating anything.
     await DB.put(rec.storageKey, {
@@ -975,7 +1086,9 @@ async function handleFile(file, source, researcher){
       imageBase64: (researcher && !UPLOAD_RESEARCHER_IMAGES) ? "" : img.base64
     });
 
-    // Each new photo starts from the participant's own settings, not ours.
+    /* Each new photo starts from the participant's own settings, not ours —
+       and not from a free-text style they wrote for the previous photo. */
+    state.styleMode = "dimensions";
     state.currentStyle = Object.assign({}, state.baseStyle);
     state.lastGeneratedStyle = null;
     syncControlsFromState();
@@ -993,13 +1106,27 @@ async function handleFile(file, source, researcher){
 /* =================================================================
    GENERATION
    ================================================================= */
+function busyBlocked(){
+  if (!state.generating) return false;
+  announce("Still writing the description. One moment.");
+  return true;
+}
+
 function setBusy(on, msg){
   state.generating = on;
   $("statusRow").hidden = !on;
   if (msg) $("statusText").textContent = msg;
   $("sheet").setAttribute("aria-busy", on ? "true" : "false");
-  ["regenBtn","resetBtn","preferBtn","newPhotoBtn"].forEach(id => { $(id).disabled = on; });
-  if (on && msg) announce(msg);
+  /* aria-disabled, not the disabled property. On iOS, disabling the button the
+     participant just activated destroys VoiceOver focus and dumps the cursor
+     back to the top of the page. This keeps the button focusable and announced
+     as dimmed; the handlers below refuse to run while busy. */
+  ["regenBtn","resetBtn","preferBtn","newPhotoBtn","toFreeformBtn"].forEach(id => {
+    const el = $(id);
+    if (el) el.setAttribute("aria-disabled", on ? "true" : "false");
+  });
+  /* statusRow is itself a live region, so setting its text announces it.
+     Announcing again through #live would double-speak. */
 }
 
 /* Transient failures — rate limits, gateway blips, a phone switching from wifi
@@ -1055,11 +1182,21 @@ async function callModel(url, headers, body){
 }
 
 async function generate(isDefault){
-  if (!state.currentImage) return;
+  /* Pin the image this request belongs to. state.currentImage can change while
+     the model call is in flight — a participant can start a new photo from the
+     OS camera sheet without touching a guarded button — and reading it again
+     after the await would file this description against the wrong image. */
+  const img = state.currentImage;
+  if (!img) return;
+  const stillCurrent = () => state.currentImage === img;
+
   const style = Object.assign({}, state.currentStyle);
   const descriptionId = uid("desc");
-  const genIndex = state.descriptions.filter(d => d.imageId === state.currentImage.imageId).length + 1;
-  const userMessage = buildUserMessage(style);
+  const genIndex = state.descriptions.filter(d => d.imageId === img.imageId).length + 1;
+  const freeform = state.styleMode === "freeform";
+  const userMessage = freeform ? buildFreeformMessage(state.freeformText)
+                               : buildUserMessage(style);
+  const systemPrompt = freeform ? SYSTEM_PROMPT_FREEFORM : SYSTEM_PROMPT;
   const t0 = performance.now();
 
   setBusy(true, isDefault ? "Writing the description…" : "Writing a new description in your chosen style…");
@@ -1071,11 +1208,11 @@ async function generate(isDefault){
       max_completion_tokens: CONFIG.MAX_OUTPUT_TOKENS,
       reasoning_effort: CONFIG.REASONING_EFFORT,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user", content: [
           { type: "text", text: userMessage },
           { type: "image_url", image_url: {
-              url: "data:image/jpeg;base64," + state.currentImage.base64,
+              url: "data:image/jpeg;base64," + img.base64,
               detail: CONFIG.IMAGE_DETAIL } }
         ]}
       ]
@@ -1118,11 +1255,11 @@ async function generate(isDefault){
       descriptionId,
       sessionId: state.sessionId,
       participantId: state.participantId,
-      imageId: state.currentImage.imageId,
+      imageId: img.imageId,
       generationIndex: genIndex,
       isDefault: !!isDefault,
       style,
-      styleSentence: styleSentence(style),
+      styleSentence: freeform ? "free text" : styleSentence(style),
       text,
       model: CONFIG.MODEL,
       responseModel: data.model || CONFIG.MODEL,
@@ -1133,11 +1270,13 @@ async function generate(isDefault){
       reasoningEffort: CONFIG.REASONING_EFFORT,
       verbosity: CONFIG.VERBOSITY,
       usage: data.usage || null,
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt,
       userMessage,
-      targetWords: LENGTH_TARGETS[style.specificity],
-      isBaselineStyle: isBaselineStyle(style),
-      matchesParticipantBase: sameStyle(style, state.baseStyle),
+      styleMode: freeform ? "freeform" : "dimensions",
+      freeformText: freeform ? state.freeformText : "",
+      targetWords: freeform ? "" : LENGTH_TARGETS[style.specificity],
+      isBaselineStyle: !freeform && isBaselineStyle(style),
+      matchesParticipantBase: !freeform && sameStyle(style, state.baseStyle),
       latencyMs: Math.round(performance.now() - t0),
       preferred: false,
       createdAt: new Date().toISOString()
@@ -1145,8 +1284,12 @@ async function generate(isDefault){
     state.descriptions.push(record);
     state.lastGeneratedStyle = Object.assign({}, style);
 
-    renderDescription(record);
-    renderHistory();
+    /* Record and upload regardless; only paint the screen if the participant
+       is still looking at this image. */
+    if (stillCurrent()){
+      renderDescription(record);
+      renderHistory();
+    }
     logEvent("description_generated", {
       descriptionId, imageId: record.imageId, generationIndex: genIndex,
       isDefault: !!isDefault, style, latencyMs: record.latencyMs
@@ -1156,7 +1299,9 @@ async function generate(isDefault){
       descriptionId, imageId: record.imageId,
       generationIndex: genIndex, isDefault: !!isDefault, style,
       targetWords: record.targetWords,
-      researcherImageId: state.currentImage.researcherImageId || "",
+      styleMode: record.styleMode,
+      freeformText: record.freeformText,
+      researcherImageId: img.researcherImageId || "",
       isBaselineStyle: record.isBaselineStyle,
       matchesParticipantBase: record.matchesParticipantBase,
       wordCount: text.trim().split(/\s+/).length,
@@ -1166,17 +1311,26 @@ async function generate(isDefault){
       userMessage, text
     });
     await saveNow();
+    if (!stillCurrent()) return;
     setBusy(false);
     updatePendingNote();
-    announce("New description ready. Version " + genIndex + ".");
-    setTimeout(() => $("descText").focus(), 120);
+    /* Speak the description itself through the live region rather than moving
+       focus and hoping the VoiceOver cursor follows — programmatic focus on a
+       non-interactive element is unreliable on iOS. No focus move, so nothing
+       interrupts the reading, and the participant keeps their place in the
+       controls. The text stays navigable under the Description heading. */
+    announce("Version " + genIndex + ". " + text);
   } catch(err){
+    if (!stillCurrent()){
+      logEvent("description_error", { imageId: img.imageId, style, message: String(err && err.message) });
+      return;
+    }
     setBusy(false);
     showError("The description couldn't be written. " + (err.message || "") + " Try again, or take a new photo.");
     announce("The description couldn't be written.");
-    logEvent("description_error", { imageId: state.currentImage.imageId, style, message: String(err && err.message) });
+    logEvent("description_error", { imageId: img.imageId, style, message: String(err && err.message) });
     Sync.push({ type: "event", eventType: "description_error",
-      imageId: state.currentImage.imageId, style, detail: String(err && err.message) });
+      imageId: img.imageId, style, detail: String(err && err.message) });
     await saveNow();
   }
 }
@@ -1190,10 +1344,12 @@ function currentVersions(){
 }
 function renderDescription(rec){
   $("versionLabel").textContent = "Version " + rec.generationIndex +
-    (rec.isDefault ? " — your starting style" : "");
+    (rec.styleMode === "freeform" ? " — your own words"
+      : (rec.isDefault ? " — your starting style" : ""));
   $("descText").textContent = rec.text;
-  $("styleSentence").textContent = "Written with " + rec.styleSentence;
-  $("descText").setAttribute("aria-label", "Description, version " + rec.generationIndex);
+  $("styleSentence").textContent = rec.styleMode === "freeform"
+    ? "Written from your own description of the style you want."
+    : "Written with " + rec.styleSentence;
 }
 function renderHistory(){
   const list = currentVersions();
@@ -1212,7 +1368,9 @@ function renderHistory(){
     const div = document.createElement("div");
     div.className = "version";
     const h = document.createElement("h3");
-    h.textContent = "Version " + rec.generationIndex + (rec.isDefault ? " — your starting style" : "");
+    h.textContent = "Version " + rec.generationIndex +
+      (rec.styleMode === "freeform" ? " — your own words"
+        : (rec.isDefault ? " — your starting style" : ""));
     const s = document.createElement("p");
     s.className = "muted"; s.style.margin = "0 0 .375rem";
     s.textContent = rec.styleSentence;
@@ -1238,40 +1396,76 @@ function updatePendingNote(){
 /* ---------- style controls ---------- */
 function buildControls(hostId, prefix, onChange, initial){
   const host = $(hostId);
-  DIMENSIONS.forEach(dim => {
+  if (!DIMENSION_ORDER.length){
+    const keys = DIMENSIONS.map(d => d.key);
+    (SHUFFLE_DIMENSION_ORDER ? shuffled(keys) : keys).forEach(k => DIMENSION_ORDER.push(k));
+  }
+  DIMENSION_ORDER.map(k => DIMENSIONS.find(d => d.key === k)).forEach(dim => {
     if (!LEVEL_ORDER[dim.key]) LEVEL_ORDER[dim.key] = shuffled(dim.levels.map(l => l.key));
     const order = LEVEL_ORDER[dim.key].map(k => dim.levels.find(l => l.key === k));
     const fs = document.createElement("fieldset");
     const lg = document.createElement("legend");
     lg.textContent = dim.label;
     const hint = document.createElement("p");
-    hint.className = "hint"; hint.id = "hint-" + dim.key; hint.textContent = dim.hint;
+    /* Prefixed: buildControls runs once for the setup screen and once for the
+       per-photo controls, so an unprefixed id would exist twice and every
+       aria-describedby would resolve to the first copy. */
+    hint.className = "hint"; hint.id = prefix + "-hint-" + dim.key; hint.textContent = dim.hint;
     fs.setAttribute("aria-describedby", hint.id);
+    hint.classList.add("tight");
     const opts = document.createElement("div");
     opts.className = "options";
 
     order.forEach(lvl => {
-      const wrap = document.createElement("label");
+      /* The definition sits OUTSIDE the label, referenced by aria-describedby.
+         Inside the label it would be swallowed into the radio's accessible
+         name, so every swipe would read "Assertive, directly states what the
+         AI model thinks is in the image, radio button, 1 of 2" before the
+         participant could tell where they were. As a description it comes
+         after the role and position, and can be skipped. */
+      const wrap = document.createElement("div");
       wrap.className = "opt";
+
+      const lab = document.createElement("label");
+      lab.className = "optlabel";
+
       const input = document.createElement("input");
       input.type = "radio";
       input.autocomplete = "off";
-      input.name = dim.key;
-      input.value = lvl.key;
       input.name = prefix + "-" + dim.key;
+      input.value = lvl.key;
       input.id = prefix + "-" + dim.key + "-" + lvl.key;
       if (initial && initial[dim.key] === lvl.key) input.checked = true;
-      input.addEventListener("change", () => onChange(dim, lvl));
+
+      const descId = input.id + "-desc";
+      input.setAttribute("aria-describedby", descId);
+      input.addEventListener("change", () => {
+        opts.querySelectorAll(".opt").forEach(o => o.classList.remove("is-checked"));
+        wrap.classList.add("is-checked");
+        onChange(dim, lvl);
+      });
 
       const sw = document.createElement("span");
       sw.className = "swatch";
       const dot = document.createElement("span"); dot.className = "dot"; dot.setAttribute("aria-hidden","true");
-      const txt = document.createElement("span"); txt.className = "txt";
       const nm = document.createElement("span"); nm.className = "name"; nm.textContent = lvl.label;
-      const bl = document.createElement("span"); bl.className = "desc2"; bl.textContent = lvl.blurb;
-      txt.append(nm, bl);
-      sw.append(dot, txt);
-      wrap.append(input, sw);
+      sw.append(dot, nm);
+      lab.append(input, sw);
+
+      const bl = document.createElement("p");
+      bl.className = "desc2"; bl.id = descId; bl.textContent = lvl.blurb;
+
+      /* The definition sits outside the <label> so it stays out of the radio's
+         accessible name — but it is inside the visible box, so a tap on it has
+         to select the option like the rest of the box does. */
+      wrap.addEventListener("click", e => {
+        if (e.target.closest("label")) return;   // the label handles its own clicks
+        if (input.checked) return;
+        input.checked = true;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+
+      wrap.append(lab, bl);
       opts.appendChild(wrap);
     });
 
@@ -1297,147 +1491,28 @@ function onStyleChange(dim, lvl){
     detail: dim.label + ": " + from + " -> " + lvl.key
   });
   updatePendingNote();
-  announce(dim.label + " set to " + lvl.label + ". Choose “Write a new description with these settings” when you're ready.");
+  /* The radio announces its own selection, so repeating it here would
+     double-speak. pendingNote is a live region and carries the "not rewritten
+     yet" state on its own. */
 }
 function onSetupStyleChange(dim, lvl){
   state.pendingBaseStyle[dim.key] = lvl.key;
   if (DIMENSIONS.every(d => state.pendingBaseStyle[d.key])) $("setupError").textContent = "";
-  announce(dim.label + " set to " + lvl.label + ".");
+}
+
+function markChecked(el){
+  if (!el) return;
+  el.checked = true;
+  const box = el.closest(".opt");
+  if (box && box.parentElement){
+    box.parentElement.querySelectorAll(".opt").forEach(o => o.classList.remove("is-checked"));
+    box.classList.add("is-checked");
+  }
 }
 
 function syncControlsFromState(){
-  DIMENSIONS.forEach(dim => {
-    const el = $("opt-" + dim.key + "-" + state.currentStyle[dim.key]);
-    if (el) el.checked = true;
-  });
+  DIMENSIONS.forEach(dim => markChecked($("opt-" + dim.key + "-" + state.currentStyle[dim.key])));
   updatePendingNote();
-}
-
-/* =================================================================
-   RESEARCHER VIEW
-   ================================================================= */
-let refreshTimer = null;
-let loadedSessions = [];
-
-async function loadSessions(){
-  const keys = await DB.listKeys("descstyle:session:");
-  const out = [];
-  for (const k of keys){
-    const rec = await DB.get(k);
-    if (rec && rec.sessionId) out.push(rec);
-  }
-  out.sort((a,b) => String(b.lastUpdated).localeCompare(String(a.lastUpdated)));
-  loadedSessions = out;
-  renderSessions();
-  $("refreshedAt").textContent = "Last refreshed at " + new Date().toLocaleTimeString() +
-    ". " + out.length + (out.length === 1 ? " session" : " sessions") + " found.";
-}
-function renderSessions(){
-  const host = $("sessionList");
-  host.textContent = "";
-  if (!loadedSessions.length){
-    const p = document.createElement("p");
-    p.className = "muted";
-    p.textContent = "No sessions yet. They appear here as soon as a participant starts one.";
-    host.appendChild(p);
-    return;
-  }
-  loadedSessions.forEach(s => {
-    const d = document.createElement("details");
-    const sum = document.createElement("summary");
-    sum.textContent = (s.participantId || "(no ID)") + " — " + s.descriptions.length +
-      (s.descriptions.length === 1 ? " description" : " descriptions") +
-      ", " + s.images.length + (s.images.length === 1 ? " photo" : " photos");
-    const body = document.createElement("div");
-
-    const meta = document.createElement("p");
-    meta.className = "muted";
-    meta.textContent = "Session " + s.sessionId + ". Started " + new Date(s.startedAt).toLocaleString() +
-      ". Last updated " + new Date(s.lastUpdated).toLocaleTimeString() + ".";
-    body.appendChild(meta);
-
-    const wrap = document.createElement("div");
-    wrap.className = "tablewrap";
-    const t = document.createElement("table");
-    const cap = document.createElement("caption");
-    cap.textContent = "Descriptions generated in this session, newest last";
-    const thead = document.createElement("thead");
-    const hr = document.createElement("tr");
-    ["Version","Photo","Confidence","Detail","Formality","Interpretation","Preferred","Description"].forEach(h => {
-      const th = document.createElement("th"); th.scope = "col"; th.textContent = h; hr.appendChild(th);
-    });
-    thead.appendChild(hr);
-    const tbody = document.createElement("tbody");
-    s.descriptions.forEach(r => {
-      const tr = document.createElement("tr");
-      const cells = [
-        r.generationIndex + (r.isDefault ? " (default)" : ""),
-        r.imageId.slice(-5),
-        r.style.confidence, r.style.specificity, r.style.formality, r.style.subjectivity,
-        r.preferred ? "Yes" : "—",
-        r.text
-      ];
-      cells.forEach((c,i) => {
-        const td = document.createElement("td");
-        td.textContent = c;
-        if (i === 7) td.style.minWidth = "22rem";
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-    t.append(cap, thead, tbody);
-    wrap.appendChild(t);
-    body.appendChild(wrap);
-
-    const imgs = document.createElement("p");
-    imgs.style.marginTop = ".75rem";
-    (async () => {
-      for (const im of s.images){
-        const rec = await DB.get(im.storageKey);
-        if (rec && rec.dataUrl){
-          const el = document.createElement("img");
-          el.className = "thumb"; el.src = rec.dataUrl;
-          el.alt = "Photo " + im.imageId.slice(-5) + " taken by " + (s.participantId || "participant");
-          el.style.marginRight = ".5rem";
-          imgs.appendChild(el);
-        }
-      }
-    })();
-    body.appendChild(imgs);
-
-    d.append(sum, body);
-    host.appendChild(d);
-  });
-}
-function csvEscape(v){ return '"' + String(v == null ? "" : v).replace(/"/g,'""') + '"'; }
-function download(name, text, mime){
-  const blob = new Blob([text], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-function exportCsv(){
-  const cols = ["session_id","participant_id","image_id","description_id","generation_index","is_default",
-    "created_at","confidence","specificity","formality","subjectivity","preferred","latency_ms",
-    "target_words","word_count","model","response_model","reasoning_effort","description_text"];
-  const rows = [cols.map(csvEscape).join(",")];
-  loadedSessions.forEach(s => s.descriptions.forEach(r => {
-    rows.push([s.sessionId, s.participantId, r.imageId, r.descriptionId, r.generationIndex, r.isDefault,
-      r.createdAt, r.style.confidence, r.style.specificity, r.style.formality, r.style.subjectivity,
-      r.preferred, r.latencyMs, r.targetWords || "", (r.text || "").trim().split(/\s+/).length, r.model, r.responseModel || "", r.reasoningEffort || "", r.text].map(csvEscape).join(","));
-  }));
-  download("descstyle-descriptions.csv", rows.join("\n"), "text/csv");
-  announce("CSV download started.");
-}
-function exportJson(){
-  download("descstyle-sessions.json", JSON.stringify(loadedSessions, null, 2), "application/json");
-  announce("JSON download started.");
-}
-function setAutoRefresh(on){
-  clearInterval(refreshTimer);
-  if (on) refreshTimer = setInterval(loadSessions, CONFIG.AUTO_REFRESH_MS);
 }
 
 /* =================================================================
@@ -1453,16 +1528,16 @@ buildControls("setupControls", "set", onSetupStyleChange, null);
 function clearAllRadios(){
   document.querySelectorAll('#setupControls input[type=radio], #controls input[type=radio]')
     .forEach(el => { el.checked = false; });
+  document.querySelectorAll('.opt.is-checked').forEach(o => o.classList.remove('is-checked'));
 }
 clearAllRadios();
 window.addEventListener("pageshow", e => {
   if (e.persisted && !state.baseStyleSet) clearAllRadios();
 });
 
-$("startBtn").addEventListener("click", () => {
-  const pid = $("pid").value.trim();
+function startSession(pid, source){
   if (!pid){
-    showError("Enter the participant ID your interviewer gave you, then choose “Start session”.");
+    showError("Enter the participant ID, then choose “Start session”.");
     $("pid").focus();
     return;
   }
@@ -1482,24 +1557,40 @@ $("startBtn").addEventListener("click", () => {
   state.sessionId = uid("s");
   state.startedAt = new Date().toISOString();
   $("sessionLabel").textContent = "Participant " + pid;
+  $("styleWho").textContent = "Participant " + pid.split("").join(" ") +
+    ". If that is not right, tell your interviewer before continuing.";
   logEvent("session_start", { participantId: pid });
-  state.pidEdited = !!(state.pidFromLink && pid !== $("pid").defaultValue);
   Sync.push({
     type: "session", startedAt: state.startedAt,
     userAgent: navigator.userAgent, language: navigator.language,
     viewport: window.innerWidth + "x" + window.innerHeight,
     pixelRatio: window.devicePixelRatio || 1,
     levelOrder: JSON.stringify(LEVEL_ORDER),
-    pidSource: state.pidFromLink ? "link" : "typed"
+    dimensionOrder: DIMENSION_ORDER.join(","),
+    pidSource: source
   });
   saveNow();
   showScreen("style", "styleH");
   announce("Session started for participant " + pid + ".");
   verifyCollector();
-});
+  /* Fetched now, shown only after they have made their own choices. */
+  loadSurveyAnswers(pid).then(ans => { state.surveyStyle = ans; });
+}
+
+$("startBtn").addEventListener("click", () => startSession($("pid").value.trim(), "typed"));
 
 /* Catch a misconfigured collector while the participant is still on the style
    screen, rather than after they have taken photos that go nowhere. */
+function goToTask(){
+  if (RESEARCHER_IMAGES.length){
+    showScreen("images", "imagesH");
+    announce("Settings saved. Now choose a study image.");
+  } else {
+    showScreen("capture", "captureH");
+    announce("Settings saved: " + styleSentence(state.baseStyle));
+  }
+}
+
 function verifyCollector(){
   if (!CONFIG.APPS_SCRIPT_URL){
     $("setupError").textContent =
@@ -1512,6 +1603,41 @@ function verifyCollector(){
         "Setup problem: this session is not reaching the study database. Tell your interviewer before continuing.";
     }
   }, 8000);
+}
+
+function buildSurveyCompare(){
+  const host = $("surveyCompare");
+  host.textContent = "";
+  const survey = state.surveyStyle, mine = state.baseStyle;
+  let agree = 0;
+
+  DIMENSIONS.forEach(dim => {
+    if (!survey[dim.key]) return;
+    const sLvl = dim.levels.find(l => l.key === survey[dim.key]);
+    const mLvl = dim.levels.find(l => l.key === mine[dim.key]);
+    const same = survey[dim.key] === mine[dim.key];
+    if (same) agree++;
+
+    const block = document.createElement("div");
+    block.className = "card";
+    const h = document.createElement("h2");
+    h.style.fontSize = "1.0625rem";
+    h.textContent = dim.label;
+    const p1 = document.createElement("p");
+    p1.className = "tight";
+    p1.textContent = same
+      ? "Both times you chose: " + mLvl.label + "."
+      : "In the survey you chose: " + sLvl.label + ".";
+    block.append(h, p1);
+    if (!same){
+      const p2 = document.createElement("p");
+      p2.style.margin = "0";
+      p2.textContent = "Just now you chose: " + mLvl.label + ".";
+      block.appendChild(p2);
+    }
+    host.appendChild(block);
+  });
+  return agree;
 }
 
 function commitBaseStyle(chosen){
@@ -1530,13 +1656,26 @@ function commitBaseStyle(chosen){
     detail: isBaselineStyle(chosen) ? "identical to the part-one baseline cell" : ""
   });
   saveNow();
-  if (RESEARCHER_IMAGES.length){
-    showScreen("images", "imagesH");
-    announce("Starting style saved. Now choose a study image.");
-  } else {
-    showScreen("capture", "captureH");
-    announce("Starting style saved: " + styleSentence(chosen));
+
+  /* The comparison is shown once, and only after their own choices are in, so
+     it cannot steer the choice it is measuring. */
+  if (state.surveyStyle && !state.surveyShown){
+    state.surveyShown = true;
+    const agree = buildSurveyCompare();
+    const total = DIMENSIONS.filter(d => state.surveyStyle[d.key]).length;
+    Sync.push({
+      type: "event", eventType: "survey_comparison",
+      styleAfter: chosen,
+      detail: agree + " of " + total + " match the survey; survey was " +
+              DIMENSIONS.filter(d => state.surveyStyle[d.key])
+                .map(d => d.key + "=" + state.surveyStyle[d.key]).join(" ")
+    });
+    saveNow();
+    showScreen("survey", "surveyH");
+    announce(agree + " of " + total + " settings match what you said in the survey.");
+    return;
   }
+  goToTask();
 }
 
 $("saveStyleBtn").addEventListener("click", () => {
@@ -1557,8 +1696,7 @@ $("saveStyleBtn").addEventListener("click", () => {
 $("editStyleBtn").addEventListener("click", () => {
   state.pendingBaseStyle = Object.assign({}, state.baseStyle);
   DIMENSIONS.forEach(dim => {
-    const el = $("set-" + dim.key + "-" + state.baseStyle[dim.key]);
-    if (el) el.checked = true;
+    markChecked($("set-" + dim.key + "-" + state.baseStyle[dim.key]));
   });
   showScreen("style", "styleH");
 });
@@ -1597,15 +1735,72 @@ async function useResearcherImage(img){
   }
 }
 
+$("keepNewBtn").addEventListener("click", () => {
+  Sync.push({ type: "event", eventType: "survey_comparison_resolved",
+    styleAfter: state.baseStyle, detail: "kept their in-session choices" });
+  goToTask();
+});
+
+$("useSurveyBtn").addEventListener("click", () => {
+  const merged = Object.assign({}, state.baseStyle, state.surveyStyle);
+  state.baseStyle = merged;
+  state.pendingBaseStyle = Object.assign({}, merged);
+  if (!state.currentImage) state.currentStyle = Object.assign({}, merged);
+  DIMENSIONS.forEach(dim => {
+    markChecked($("set-" + dim.key + "-" + merged[dim.key]));
+  });
+  Sync.push({ type: "event", eventType: "survey_comparison_resolved",
+    styleAfter: merged, detail: "switched to their survey answers" });
+  saveNow();
+  goToTask();
+});
+
+$("backToStyleBtn").addEventListener("click", () => {
+  state.pendingBaseStyle = Object.assign({}, state.baseStyle);
+  showScreen("style", "styleH");
+});
+
+/* ---------- free text ---------- */
+$("toFreeformBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
+  $("freeformError").textContent = "";
+  showScreen("freeform", "freeformH");
+});
+
+$("freeformBackBtn").addEventListener("click", () => showScreen("result", "resultH"));
+
+$("freeformGoBtn").addEventListener("click", () => {
+  const text = $("freeformText").value.trim();
+  if (text.length < 10){
+    $("freeformError").textContent =
+      "Say a little more about how you'd like descriptions written, then choose “Write a description this way”.";
+    $("freeformText").focus();
+    return;
+  }
+  $("freeformError").textContent = "";
+  state.styleMode = "freeform";
+  state.freeformText = text;
+  Sync.push({ type: "event", eventType: "freeform_submitted",
+    imageId: state.currentImage ? state.currentImage.imageId : null,
+    detail: text });
+  showScreen("result", "resultH");
+  generate(false);
+});
+
 $("toStudyImages").addEventListener("click", () => showScreen("images", "imagesH"));
 $("toOwnPhotos").addEventListener("click", () => showScreen("capture", "captureH"));
 
 $("camInput").addEventListener("change", e => { handleFile(e.target.files[0], "camera"); e.target.value = ""; });
 $("libInput").addEventListener("change", e => { handleFile(e.target.files[0], "library"); e.target.value = ""; });
 
-$("regenBtn").addEventListener("click", () => generate(false));
+$("regenBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
+  state.styleMode = "dimensions"; generate(false);
+});
 
 $("resetBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
+  state.styleMode = "dimensions";
   state.currentStyle = Object.assign({}, state.baseStyle);
   syncControlsFromState();
   logEvent("style_reset", { imageId: state.currentImage ? state.currentImage.imageId : null });
@@ -1617,6 +1812,7 @@ $("resetBtn").addEventListener("click", () => {
 });
 
 $("preferBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
   const versions = currentVersions();
   const latest = versions[versions.length - 1];
   if (!latest) return;
@@ -1633,6 +1829,7 @@ $("preferBtn").addEventListener("click", () => {
 });
 
 $("newPhotoBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
   const fromStudy = state.currentImage && state.currentImage.researcherImageId;
   if (fromStudy && RESEARCHER_IMAGES.length) showScreen("images", "imagesH");
   else showScreen("capture", "captureH");
@@ -1640,23 +1837,68 @@ $("newPhotoBtn").addEventListener("click", () => {
 $("backToDesc").addEventListener("click", () => showScreen("result", "resultH"));
 $("retrySync").addEventListener("click", () => { clearError(); state.warnedSync = false; Sync.failed = false; Sync.flush(); saveNow(); });
 
-$("toResearcher").addEventListener("click", () => {
-  showScreen("researcher", "resH");
-  $("storageNote").textContent = CONFIG.APPS_SCRIPT_URL
-    ? "Live session data goes to the Google Sheet — open that to follow along. This view shows only what this device has captured."
-    : "No collector URL is configured, so nothing is being uploaded. This view shows only what this device has captured.";
-  loadSessions();
-  setAutoRefresh($("autoRefresh").checked);
+
+
+/* ---------------------------------------------------------------------
+   End of session. Waits for the upload queue to drain first, so the export
+   the script builds from the sheet includes everything, then asks the script
+   to write a CSV and a JSON log into the participant's Drive folder.
+   --------------------------------------------------------------------- */
+$("endBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
+  $("endBtn").hidden = true;
+  $("endConfirm").hidden = false;
+  $("endYesBtn").focus();
+  announce("This ends the session and saves everything. Confirm or cancel.");
 });
-$("backFromResearcher").addEventListener("click", () => {
-  setAutoRefresh(false);
-  showScreen(state.sessionId ? (state.currentImage ? "result" : "capture") : "setup",
-             state.sessionId ? (state.currentImage ? "resultH" : "captureH") : "setupH");
+
+$("endNoBtn").addEventListener("click", () => {
+  $("endConfirm").hidden = true;
+  $("endBtn").hidden = false;
+  $("endBtn").focus();
 });
-$("refreshBtn").addEventListener("click", loadSessions);
-$("autoRefresh").addEventListener("change", e => setAutoRefresh(e.target.checked));
-$("exportCsv").addEventListener("click", exportCsv);
-$("exportJson").addEventListener("click", exportJson);
+
+$("endYesBtn").addEventListener("click", async () => {
+  if (state.ending) return;          // a second tap during the await would export twice
+  state.ending = true;
+  $("endYesBtn").setAttribute("aria-disabled", "true");
+  $("endConfirmText").textContent = "Saving everything from this session…";
+  announce("Saving everything from this session.");
+
+  /* Let anything still queued land before the script builds the export. */
+  const deadline = Date.now() + 20000;
+  while ((Sync.queue.length || Sync.sending) && Date.now() < deadline){
+    await new Promise(r => setTimeout(r, 400));
+  }
+
+  let result = null;
+  try {
+    const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        type: "finalize",
+        sessionId: state.sessionId,
+        participantId: state.participantId,
+        secret: CONFIG.SHARED_SECRET || undefined
+      })
+    });
+    result = await res.json();
+  } catch(err){ result = null; }
+
+  showScreen("done", "doneH");
+
+  if (result && result.ok){
+    $("doneSummary").textContent =
+      result.descriptions + " descriptions and " + result.photos +
+      " photos were saved to the study folder for " + state.participantId + ".";
+    announce("Session complete. Everything has been saved.");
+  } else {
+    $("doneSummary").textContent =
+      "The session has ended. The saved copy could not be confirmed, but everything sent during the session is already in the study database. Tell your interviewer.";
+    announce("Session ended. Tell your interviewer that the saved copy could not be confirmed.");
+  }
+});
 
 /* Text size */
 const SIZES = { sizeA:1, sizeB:1.18, sizeC:1.38 };
@@ -1672,29 +1914,23 @@ Object.keys(SIZES).forEach(id => {
 $("pid").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); $("startBtn").click(); } });
 
 /* ---------------------------------------------------------------------
-   Participant ID can be pre-filled from the link: ...?pid=P07
-   Sanitised hard, because this value ends up in a filename and a sheet.
-   The field stays editable so a wrong ID can be corrected in the room.
+   The link carries the participant ID: ...?pid=P07
+   When it does, there is nothing to type, so the ID screen is skipped and the
+   session opens directly on the style settings. A link without a usable ID
+   falls back to the manual start screen. Sanitised hard, because this value
+   ends up in a Drive filename and a sheet.
    --------------------------------------------------------------------- */
-(function prefillParticipantId(){
+(function launchFromLink(){
   let raw = "";
   try { raw = new URLSearchParams(location.search).get("pid") || ""; }
   catch(e){ return; }
-  if (!raw) return;
 
   const clean = raw.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 24);
   if (!clean) return;
 
-  $("pid").value = clean;
   state.pidFromLink = true;
-  $("pidHint").textContent =
-    "Filled in from your link. Check it reads " + clean.split("").join(" ") +
-    ", then choose Start session.";
-  setTimeout(() => $("startBtn").focus(), 60);
+  setTimeout(() => startSession(clean, "link"), 0);
 })();
-
-/* Direct link to researcher tools */
-if (location.hash === "#researcher") $("toResearcher").click();
 
 updateSyncPill();
 
