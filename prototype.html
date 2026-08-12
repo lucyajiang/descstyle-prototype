@@ -493,11 +493,11 @@ const CONFIG = {
   /* --- Auth. USE_COLLECTOR_PROXY routes model calls through the Apps Script,
          which holds the key server-side, so nothing secret lives in this file.
          Set it to false only to fall back to entering a key by hand. --- */
-  USE_COLLECTOR_PROXY: false,
+  USE_COLLECTOR_PROXY: true,
   PROXY_URL: "",             // optional separate proxy; ignored when the above is true
 
   /* --- Study database: the Apps Script /exec URL --- */
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyWwygc1Pq5DY4Ygnc9THC9fvdN5Kzr8gfyCsq6wHruS45HA43_XxmBI5pHYtFHwVo3/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyZf0K9t16nuZ_5ta2hcPdls_LfkeTfetSKS5rOgwXTRyQSlnF_Sj47Vepl3yXN31Jt/exec",
   SHARED_SECRET: "",         // must match SHARED_SECRET in the Apps Script, or leave both empty
   SHARED: true,              // also mirror to artifact storage when it exists
   MAX_IMAGE_DIM: 1280,
@@ -1557,7 +1557,7 @@ function startSession(pid, source){
   state.sessionId = uid("s");
   state.startedAt = new Date().toISOString();
   $("sessionLabel").textContent = "Participant " + pid;
-  $("styleWho").textContent = "Participant " + pid.split("").join(" ") +
+  $("styleWho").textContent = "Participant " + pid +
     ". If that is not right, tell your interviewer before continuing.";
   logEvent("session_start", { participantId: pid });
   Sync.push({
@@ -1577,7 +1577,13 @@ function startSession(pid, source){
   loadSurveyAnswers(pid).then(ans => { state.surveyStyle = ans; });
 }
 
-$("startBtn").addEventListener("click", () => startSession($("pid").value.trim(), "typed"));
+$("startBtn").addEventListener("click", () => {
+  const pid = $("pid").value.trim();
+  /* If the link supplied this id and it has not been edited, record it as
+     coming from the link even though the key gate forced a manual start. */
+  const fromLink = state.pidFromLink && pid === (state.linkPid || "");
+  startSession(pid, fromLink ? "link" : "typed");
+});
 
 /* Catch a misconfigured collector while the participant is still on the style
    screen, rather than after they have taken photos that go nowhere. */
@@ -1929,6 +1935,15 @@ $("pid").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDef
   if (!clean) return;
 
   state.pidFromLink = true;
+
+  /* Fill the field before attempting the auto-start. If the session cannot
+     start yet — with the proxy off, a key still has to be entered — the
+     fallback screen appears with the id already in place instead of empty. */
+  state.linkPid = clean;
+  $("pid").value = clean;
+  $("pidHint").textContent =
+    "Filled in from your link. Check it reads " + clean + ", then choose Start session.";
+
   setTimeout(() => startSession(clean, "link"), 0);
 })();
 
