@@ -5,47 +5,91 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Image Description Study</title>
 <meta name="color-scheme" content="light dark">
+<script>
+/* Runs before first paint: a phone already in dark mode should never flash
+   light. The full theme logic lives with the rest of the script; this only
+   sets the initial class. */
+try{ if (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches)
+       document.documentElement.classList.add("theme-dark"); }catch(e){}
+</script>
 <style>
 /* ---------------------------------------------------------------
-   Tokens. Low-vision-first: high contrast, large type, no webfonts
-   (system stack honors iOS Dynamic Type / Android font scaling).
+   Visual language borrowed from conversational AI description apps
+   (Be My AI, Seeing AI): tonal surfaces rather than hairlines, the
+   description presented as a large rounded message card, pill-shaped
+   full-width actions, generous spacing.
+
+   Every colour pair below is contrast-verified in both themes. The
+   rule that shapes the palette: any control distinguished ONLY by a
+   background fill needs 3:1 against what sits behind it (1.4.11), so
+   filled-but-quiet controls carry a 2px --line-strong border instead
+   of relying on a subtle tint. Non-interactive containers (cards, the
+   description bubble, status boxes) are exempt and use fill alone.
    --------------------------------------------------------------- */
 :root{
   --paper:#ffffff;
-  --surface:#eef1f4;
-  --surface-2:#e2e7ec;
-  --ink:#12161b;
-  --ink-2:#3d444d;
-  --line:#b9c1ca;
-  --line-strong:#6d7681;
-  --brand:#1b4db1;
+  --surface:#f1f4f9;
+  --surface-2:#dfe7f5;
+  --bubble:#eef2fb;
+  --ink:#0c1017;
+  /* Secondary text is the SAME colour as body text, not a lighter grey.
+     Hierarchy is carried by size and weight instead, so nothing on the page
+     sits below the maximum available contrast. */
+  --ink-2:#0c1017;
+  --line:#7a8593;
+  --line-strong:#69717f;
+  --brand:#1b45d7;
   --brand-ink:#ffffff;
-  --ok:#15603a;
-  --alert:#98122a;
-  --focus:#0b5fff;
-  --radius:12px;
-  --tap:48px;
+  --ok:#146044;
+  --alert:#9c0f28;
+  --focus:#0a3ad9;
+  --radius:20px;
+  --radius-sm:14px;
+  --pill:999px;
+  --tap:52px;
+  /* Spacing is named by PURPOSE, not by size. A new element gets the right
+     value by asking what it is ("this is a stacked control", "this is inside
+     a card") rather than by copying whatever number the last one used — which
+     is how stylesheets drift. Change rhythm here, once, and it moves
+     everywhere consistently. */
+  --gap-section:1.75rem;   /* between major sections of a screen           */
+  --gap-block:1.25rem;     /* between blocks inside one section            */
+  --gap-stack:.75rem;      /* between stacked buttons and options          */
+  --gap-inline:.625rem;    /* between items sitting on one line            */
+  --gap-tight:.375rem;     /* label to the thing it labels                 */
+  --gap-heading:.5rem;     /* heading to the text it introduces            */
+  --gap-para:1.5rem;       /* between paragraphs (1.4.8 spacing)           */
+  --gap-hair:.25rem;       /* optical nudges only                          */
+  --pad-card:1.125rem;     /* inside cards, banners, the description sheet */
+  --pad-control:.875rem;   /* inside buttons, rows, summaries              */
+  --pad-text:1rem;         /* inside text-carrying boxes                   */
   --step:1;
+  color-scheme:light;
   /* Percentage, not px: a px root silently overrides the browser's own
      default-font-size setting, which is the first thing many low vision
      users change. 106.25% of a 16px default is the same 17px as before. */
   font-size:calc(106.25% * var(--step));
 }
-@media (prefers-color-scheme: dark){
-  :root{
-    --paper:#0d1117;
-    --surface:#161c24;
-    --surface-2:#212a34;
-    --ink:#f2f5f8;
-    --ink-2:#c2cad3;
-    --line:#3a444f;
-    --line-strong:#7d8894;
-    --brand:#9dc0ff;
-    --brand-ink:#0d1117;
-    --ok:#7fdcac;
-    --alert:#ff9fae;
-    --focus:#9dc0ff;
-  }
+/* The dark palette is declared ONCE. Which palette applies is decided in JS
+   (see applyTheme) rather than by duplicating this block into a media query
+   and an explicit override, which is exactly the kind of pair that drifts.
+   A tiny script in <head> sets the class before first paint, so a participant
+   whose phone is in dark mode never sees a flash of light. */
+:root.theme-dark{
+  color-scheme:dark;
+  --paper:#0b0f15;
+  --surface:#161c26;
+  --surface-2:#232d3b;
+  --bubble:#141d2e;
+  --ink:#f3f6fa;
+  --ink-2:#f3f6fa;
+  --line:#6b7889;
+  --line-strong:#828d9b;
+  --brand:#93b8ff;
+  --brand-ink:#0b0f15;
+  --ok:#7fdcac;
+  --alert:#ff9fae;
+  --focus:#93b8ff;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -60,15 +104,24 @@ body{
     env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
-.wrap{max-width:44rem;margin:0 auto;padding:1rem 1rem 4rem}
+/* 5rem of foot room keeps the last control clear of a phone home indicator. */
+.wrap{max-width:34rem;margin:0 auto;padding:var(--pad-text) var(--pad-card) 5rem}
 
-/* Focus: never removed, always thick */
+/* Focus: never removed, always thick, and never drawn against a background it
+   cannot be seen on. In dark mode --focus and --brand are the same hue family,
+   so a ring sitting directly on a filled primary button would disappear. Two
+   defences: outline-offset puts the ring outside the control, and the
+   box-shadow paints a --paper halo in the gap, so the ring's inner neighbour
+   is always --paper regardless of what the control is filled with. --focus is
+   verified >=3:1 against paper, surface, surface-2 and bubble in both themes,
+   so the outer edge is covered too. */
 :where(a,button,input,select,summary,[tabindex]):focus-visible,
 input[type=file]:focus-visible + .filelabel,
 input[type=radio]:focus-visible + .swatch{
   outline:3px solid var(--focus);
-  outline-offset:2px;
-  border-radius:6px;
+  outline-offset:3px;
+  box-shadow:0 0 0 3px var(--paper);
+  border-radius:var(--radius-sm);
 }
 :focus:not(:focus-visible){outline:none}
 
@@ -78,121 +131,136 @@ input[type=radio]:focus-visible + .swatch{
 }
 .skip{
   position:absolute;left:-9999px;top:0;background:var(--brand);color:var(--brand-ink);
-  padding:.75rem 1rem;z-index:50;border-radius:0 0 8px 0;
+  padding:var(--gap-stack) var(--pad-text);z-index:50;border-radius:0 0 var(--radius-sm) 0;font-weight:700;
 }
 .skip:focus{left:0}
 
-h1,h2,h3{line-height:1.25;margin:0 0 .5rem;font-weight:700;letter-spacing:-0.01em}
-h1{font-size:1.5rem}
+h1,h2,h3{line-height:1.2;margin:0 0 var(--gap-heading);font-weight:750;letter-spacing:-0.02em}
+h1{font-size:1.625rem;margin-bottom:var(--gap-stack)}
 h2{font-size:1.25rem}
 h3{font-size:1.0625rem}
-p{margin:0 0 1.6rem;max-width:70ch}
+p{margin:0 0 var(--gap-para);max-width:70ch}
 .muted{color:var(--ink-2);font-size:.9375rem}
+/* Weight, not colour, now marks the eyebrow and version line as secondary. */
 /* 1.4.8 asks for paragraph spacing of at least 1.5x line spacing. Tight
    groupings (hints, single-line notes) opt out where they are not body text. */
-.tight{margin-bottom:.5rem}
+.tight{margin-bottom:var(--gap-heading)}
 
 /* Masthead */
 .mast{
-  display:flex;align-items:center;justify-content:space-between;gap:.75rem;
-  padding:.5rem 0 1rem;border-bottom:2px solid var(--line);margin-bottom:1.25rem;
+  display:flex;align-items:center;justify-content:space-between;gap:var(--gap-stack);
+  flex-wrap:wrap;
+  padding:var(--gap-hair) 0 var(--pad-text);margin-bottom:var(--gap-block);
 }
 .mast .eyebrow{
-  font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;
-  font-weight:700;color:var(--ink-2);margin:0;
+  font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;
+  font-weight:750;color:var(--ink-2);margin:0;
 }
 
-/* Buttons */
+/* Buttons: full-width pills, the shape these apps use for their primary
+   actions. Quiet buttons keep a visible border because a fill alone would
+   not clear 3:1 against the page. */
 .btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  display:inline-flex;align-items:center;justify-content:center;gap:var(--gap-heading);
   min-height:var(--tap);min-width:var(--tap);width:100%;
-  padding:.75rem 1.125rem;border-radius:var(--radius);
-  font:inherit;font-weight:650;text-align:center;cursor:pointer;
-  border:2px solid transparent;
+  padding:var(--pad-control) var(--gap-block);border-radius:var(--pill);
+  font:inherit;font-size:1.0625rem;font-weight:700;text-align:center;cursor:pointer;
+  border:2px solid transparent;line-height:1.3;
 }
-.btn + .btn{margin-top:.625rem}
+.btn + .btn{margin-top:var(--gap-stack)}
 .btn-primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
 .btn-secondary{background:var(--paper);color:var(--ink);border-color:var(--line-strong)}
-.btn-quiet{background:transparent;color:var(--ink);border-color:transparent;text-decoration:underline;width:auto}
+.btn-quiet{
+  background:transparent;color:var(--brand);border-color:transparent;
+  text-decoration:underline;text-underline-offset:3px;width:auto;font-weight:650;
+}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 .btn[aria-disabled="true"]{opacity:.5}
 
 .filelabel{
   display:flex;align-items:center;justify-content:center;
-  min-height:var(--tap);padding:.875rem 1.125rem;border-radius:var(--radius);
-  font-weight:650;cursor:pointer;border:2px solid;
+  min-height:var(--tap);padding:var(--pad-control) var(--gap-block);border-radius:var(--pill);
+  font-size:1.0625rem;font-weight:700;cursor:pointer;border:2px solid;
 }
 .filelabel.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
 .filelabel.secondary{background:var(--paper);color:var(--ink);border-color:var(--line-strong)}
-.filelabel + .filelabel{margin-top:.625rem}
+/* The two file pickers each have a visually hidden <input> before them, so an
+   adjacent-sibling rule never matches and they rendered flush against each
+   other. A grid gap is immune to that: .vh inputs are position:absolute, so
+   they are out of flow and do not become grid items. */
+.stack{display:grid;gap:var(--gap-stack)}
+.filelabel + .filelabel{margin-top:var(--gap-stack)}
 
-/* Cards */
+/* Cards: fill, no hairline. Not interactive, so 1.4.11 does not apply. */
 .card{
-  background:var(--surface);border:1px solid var(--line);
-  border-radius:var(--radius);padding:1rem;margin-bottom:1.25rem;
+  background:var(--surface);border:0;
+  border-radius:var(--radius);padding:var(--pad-card);margin-bottom:var(--gap-block);
 }
 
 /* Fields */
-label.field{display:block;font-weight:650;margin-bottom:.375rem}
+label.field{display:block;font-weight:700;margin-bottom:var(--gap-tight)}
 textarea{
-  width:100%;padding:.625rem .75rem;font:inherit;line-height:1.5;
+  width:100%;padding:var(--gap-stack) var(--pad-control);font:inherit;line-height:1.5;
   color:var(--ink);background:var(--paper);
-  border:2px solid var(--line-strong);border-radius:var(--radius);
+  border:2px solid var(--line-strong);border-radius:var(--radius-sm);
   resize:vertical;min-height:8rem;
 }
 input[type=text],
 input[type=password]{
-  width:100%;min-height:var(--tap);padding:.625rem .75rem;font:inherit;
+  width:100%;min-height:var(--tap);padding:var(--gap-stack) var(--pad-control);font:inherit;
   color:var(--ink);background:var(--paper);
-  border:2px solid var(--line-strong);border-radius:var(--radius);
+  border:2px solid var(--line-strong);border-radius:var(--radius-sm);
 }
 
-/* --- Signature element: the description sheet ------------------ */
+/* --- The description, presented as a message card ---------------- */
 .sheet{
-  background:var(--paper);
-  border:1px solid var(--line-strong);
-  border-left:6px solid var(--brand);
+  background:var(--bubble);
+  border:0;
   border-radius:var(--radius);
-  padding:1.125rem 1.125rem 1.25rem;
-  margin:0 0 1rem;
+  border-bottom-left-radius:var(--radius-sm);
+  /* A touch more room at the foot than the head, so the text sits
+     optically centred in the card rather than mathematically. */
+  padding:var(--gap-block) var(--gap-block) 1.375rem;
+  margin:0 0 var(--pad-text);
 }
 .sheet .versionline{
   display:flex;flex-wrap:wrap;gap:.5rem;align-items:baseline;
-  font-size:.8125rem;letter-spacing:.1em;text-transform:uppercase;
-  font-weight:700;color:var(--ink-2);margin-bottom:.5rem;
+  font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;
+  font-weight:750;color:var(--ink-2);margin-bottom:var(--gap-inline);
 }
 .sheet .desc{
-  font-size:1.1875rem;line-height:1.65;max-width:42ch;margin:0;
+  font-size:1.25rem;line-height:1.6;max-width:42ch;margin:0;
 }
 .stylesentence{
-  font-size:.9375rem;color:var(--ink-2);margin:.75rem 0 0;
-  padding-top:.75rem;border-top:1px solid var(--line);
+  font-size:.9375rem;color:var(--ink-2);margin:var(--pad-text) 0 0;
+  padding-top:var(--pad-control);border-top:1px solid var(--line);
 }
 
-/* Free-text mode banner on the result screen */
+/* Free-text mode banner */
 .modebox{
-  border:2px solid var(--line-strong);border-radius:var(--radius);
-  background:var(--surface);padding:.875rem;margin:0 0 1.25rem;
+  border:0;border-radius:var(--radius);
+  background:var(--surface);padding:var(--pad-card);margin:0 0 var(--gap-block);
 }
-.modebox h3{margin:0 0 .375rem}
+.modebox h3{margin:0 0 var(--gap-heading)}
 .modebox .own{
-  margin:0 0 .75rem;font-style:normal;color:var(--ink);
-  border-left:3px solid var(--line-strong);padding-left:.75rem;
+  margin:0 0 var(--pad-text);font-style:normal;color:var(--ink);
+  border-left:4px solid var(--brand);padding-left:var(--pad-control);
 }
 
-/* Style controls: radios as full-width rows */
+/* Style controls */
 fieldset{
-  border:1px solid var(--line);border-radius:var(--radius);
-  padding:.75rem .875rem 1rem;margin:0 0 1rem;background:var(--paper);
+  border:0;border-radius:var(--radius);
+  padding:0;margin:0 0 var(--gap-block);background:transparent;
 }
-legend{font-weight:700;padding:0 .375rem;font-size:1.0625rem}
-.dimhead{margin:1.5rem 0 .375rem;font-size:1.0625rem}
+legend{font-weight:700;padding:0;font-size:1.0625rem}
+h2.dimhead,h3.dimhead{margin:var(--gap-para) 0 var(--gap-hair);font-size:1.0625rem;font-weight:750}
 #controls .dimhead:first-child,#setupControls .dimhead:first-child{margin-top:0}
-fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:.25rem 0 .75rem}
-.options{display:flex;flex-direction:column;gap:.5rem}
+fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:var(--gap-hair) 0 var(--gap-stack)}
+.options{display:flex;flex-direction:column;gap:var(--gap-inline)}
 .opt{
-  border:2px solid var(--line-strong);border-radius:var(--radius);
-  background:var(--paper);overflow:hidden;
+  border:2px solid var(--line-strong);border-radius:var(--radius-sm);
+  background:var(--paper);
+  /* no overflow:hidden — it clips the focus ring of the .swatch inside */
 }
 .optlabel{position:relative;display:block;cursor:pointer}
 .opt input[type=radio]{
@@ -200,56 +268,81 @@ fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:.25rem 0 .75rem}
   top:0;left:0;cursor:pointer;
 }
 .swatch{
-  display:flex;align-items:center;gap:.625rem;
-  min-height:var(--tap);padding:.625rem .75rem;
+  display:flex;align-items:center;gap:var(--gap-stack);
+  /* Bottom padding trimmed so the definition sits close to the name it
+     belongs to; min-height still holds the 52px target. */
+  min-height:var(--tap);padding:var(--gap-stack) var(--pad-control) var(--gap-hair);
 }
 .swatch .dot{
-  flex:0 0 auto;width:1.375rem;height:1.375rem;margin-top:.125rem;
+  flex:0 0 auto;width:1.5rem;height:1.5rem;
   border:2px solid var(--line-strong);border-radius:50%;background:var(--paper);
 }
 .opt.is-checked{
   border-color:var(--brand);
   background:var(--surface-2);
-  box-shadow:inset 0 0 0 1px var(--brand);
+  box-shadow:inset 0 0 0 2px var(--brand);
 }
 .opt.is-checked .dot{
   border-color:var(--brand);
   background:radial-gradient(circle, var(--brand) 0 45%, var(--paper) 46% 100%);
 }
-.swatch .name{display:block;font-weight:650}
+.swatch .name{display:block;font-weight:700;font-size:1.0625rem}
 .opt .desc2{
-  margin:0;padding:0 .75rem .625rem 2.75rem;
-  font-size:.875rem;color:var(--ink-2);max-width:none;
+  /* 3.125rem lines the definition up with the option label, past the
+     1.5rem dot and its .75rem gap. Not part of the spacing scale. */
+  margin:0;padding:0 var(--pad-control) var(--gap-stack) 3.125rem;
+  font-size:.9375rem;color:var(--ink-2);max-width:none;
 }
 
-/* Photo preview */
+/* Photo */
 .photo{
   display:block;width:100%;height:auto;border-radius:var(--radius);
-  border:1px solid var(--line);background:var(--surface);
+  border:0;background:var(--surface);
+  margin:var(--gap-block) 0 0;
 }
 
-/* History */
-details{border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--paper);margin-bottom:1rem}
+/* Disclosures. The <summary> is styled exactly like .btn-secondary — same
+   pill, same border, same weight — because it IS the control; the box around
+   it was reading as a card instead. The native marker is replaced with a
+   chevron drawn from borders rather than a text glyph, since a glyph in
+   ::after content can be spoken ("down pointing triangle") by some screen
+   readers. Role and expanded/collapsed state still come from the native
+   element, so nothing about the announcement changes. */
+details{border:0;background:transparent;margin-bottom:var(--pad-text);border-radius:0}
 summary{
-  min-height:var(--tap);display:flex;align-items:center;
-  padding:.75rem .875rem;font-weight:650;cursor:pointer;border-radius:var(--radius);
+  position:relative;
+  min-height:var(--tap);display:flex;align-items:center;justify-content:center;
+  /* 3rem of horizontal room so the centred label clears the chevron. */
+  padding:var(--pad-control) 3rem;border-radius:var(--pill);
+  border:2px solid var(--line-strong);background:var(--paper);color:var(--ink);
+  font-size:1.0625rem;font-weight:700;text-align:center;cursor:pointer;
+  list-style:none;
 }
-details > div{padding:0 .875rem .875rem}
-.version{border-top:1px solid var(--line);padding:.875rem 0 0;margin-top:.875rem}
+summary::-webkit-details-marker{display:none}
+summary::after{
+  content:"";position:absolute;right:1.375rem;top:50%;
+  width:.55rem;height:.55rem;
+  border-right:2.5px solid currentColor;border-bottom:2.5px solid currentColor;
+  transform:translateY(-70%) rotate(45deg);
+}
+details[open] > summary::after{transform:translateY(-30%) rotate(-135deg)}
+details > div{padding:0;margin-top:var(--pad-text)}
+/* .stack supplies the gap, so the generic button margin would double it. */
+.stack > .btn + .btn{margin-top:0}
+.version{border-top:1px solid var(--line);padding:var(--pad-text) 0 0;margin-top:var(--pad-text)}
 .version:first-child{border-top:0;margin-top:0}
-.version .btn{margin-top:.625rem}
+.version .btn{margin-top:var(--gap-stack)}
 
 /* Status regions */
 .status{
-  display:flex;align-items:center;gap:.5rem;min-height:var(--tap);
-  padding:.625rem .75rem;border-radius:var(--radius);
-  background:var(--surface);border:1px solid var(--line);
-  font-weight:650;margin-bottom:1rem;
+  display:flex;align-items:center;gap:var(--gap-inline);min-height:var(--tap);
+  padding:var(--gap-stack) var(--pad-text);border-radius:var(--radius);
+  background:var(--surface);border:0;
+  font-weight:650;margin-bottom:var(--pad-text);
 }
-.status.is-error{border-color:var(--alert);color:var(--alert);background:var(--paper)}
 .alertbox{
   border:2px solid var(--alert);color:var(--alert);background:var(--paper);
-  border-radius:var(--radius);padding:.875rem;margin-bottom:1rem;font-weight:650;
+  border-radius:var(--radius);padding:var(--pad-text);margin-bottom:var(--pad-text);font-weight:700;
 }
 .alertbox:empty{display:none}
 
@@ -259,6 +352,28 @@ details > div{padding:0 .875rem .875rem}
   animation:spin .9s linear infinite;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
+/* Windows high contrast (and Android's equivalent) replace author colours
+   wholesale: gradients are dropped, background tints are dropped, box-shadow
+   is dropped. Everything this design uses to show a selected option would go
+   with them, and the real radio is opacity:0 — so the platform's own control
+   is put back and the custom art stands down. Distinct from iOS "Increase
+   Contrast", which is prefers-contrast and needs nothing here: text already
+   sits at 17:1 or better. */
+@media (forced-colors: active){
+  .optlabel{display:flex;align-items:center;gap:var(--gap-tight);padding-left:var(--pad-control)}
+  .opt input[type=radio]{position:static;opacity:1;width:auto;height:auto;margin:0}
+  .swatch{padding-left:0}
+  .swatch .dot{display:none}
+  /* Fills carry meaning on these; keep them rather than letting the system
+     flatten a pressed toggle into an unpressed one. */
+  .btn-primary,.filelabel.primary,
+  .sizectl button[aria-pressed="true"],.themectl button[aria-pressed="true"]{
+    forced-color-adjust:none;
+    background:Highlight;color:HighlightText;border-color:Highlight;
+  }
+  .sheet,.card,.status,.modebox{border:1px solid CanvasText}
+}
+
 @media (prefers-reduced-motion: reduce){
   .spinner{animation:none;border-top-color:var(--line)}
   *{transition:none!important}
@@ -266,33 +381,70 @@ details > div{padding:0 .875rem .875rem}
 
 /* Sync pill */
 .syncrow{
-  display:flex;align-items:center;justify-content:space-between;gap:.75rem;
-  border-top:1px solid var(--line);margin-top:2rem;padding-top:.875rem;
+  display:flex;align-items:center;justify-content:space-between;gap:var(--gap-stack);
+  border-top:1px solid var(--line);margin-top:2.5rem;padding-top:var(--pad-text);
   font-size:.875rem;color:var(--ink-2);flex-wrap:wrap;
 }
 .pill{
-  display:inline-block;padding:.25rem .625rem;border-radius:999px;
-  border:1px solid var(--line-strong);font-weight:650;
+  display:inline-block;padding:var(--gap-hair) var(--gap-stack);border-radius:var(--pill);
+  border:2px solid var(--line-strong);font-weight:700;
 }
 .pill.ok{border-color:var(--ok);color:var(--ok)}
 .pill.bad{border-color:var(--alert);color:var(--alert)}
 
-/* Text size control */
-.sizectl{display:flex;gap:.375rem;align-items:center}
-.sizectl button{
-  min-height:var(--tap);min-width:var(--tap);font:inherit;font-weight:700;
+/* Display settings. Compact in the header until opened, then it takes a full
+   row of its own so the controls inside are not squeezed against the edge. */
+.display{flex:0 0 auto;margin-bottom:0}
+.display > summary{
+  padding:var(--gap-stack) 2.5rem var(--gap-stack) var(--pad-text);
+  font-size:1rem;
+}
+.display > summary::after{right:var(--pad-text)}
+details[open].display{flex:1 1 100%;margin-top:var(--gap-stack)}
+.setgroup + .setgroup{margin-top:var(--gap-block)}
+.setlabel{font-weight:700;margin:0 0 var(--gap-tight);font-size:.9375rem}
+.themectl{display:flex;gap:var(--gap-tight);flex-wrap:wrap}
+.themectl button{
+  min-height:var(--tap);padding:0 var(--pad-text);font:inherit;font-weight:700;
   background:var(--paper);color:var(--ink);
-  border:2px solid var(--line-strong);border-radius:8px;cursor:pointer;
+  border:2px solid var(--line-strong);border-radius:var(--pill);cursor:pointer;
+}
+.themectl button[aria-pressed="true"]{
+  background:var(--brand);color:var(--brand-ink);border-color:var(--brand);
+}
+
+/* Text size control */
+.sizectl{display:flex;gap:var(--gap-tight);align-items:center}
+.sizectl button{
+  min-height:var(--tap);min-width:var(--tap);font:inherit;font-weight:750;
+  background:var(--paper);color:var(--ink);
+  border:2px solid var(--line-strong);border-radius:var(--radius-sm);cursor:pointer;
 }
 .sizectl button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
 
-/* Researcher tables */
-.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius)}
-table{border-collapse:collapse;width:100%;font-size:.875rem}
-th,td{text-align:left;padding:.5rem .625rem;border-bottom:1px solid var(--line);vertical-align:top}
-th{background:var(--surface);font-weight:700}
-caption{text-align:left;padding:.625rem;font-weight:700}
-.thumb{width:72px;height:auto;border-radius:6px;border:1px solid var(--line)}
+/* ---------------------------------------------------------------
+   Layout utilities. These exist so no element carries a style=""
+   attribute: spacing decisions live here, next to each other, where
+   they can be kept consistent and changed in one place.
+   --------------------------------------------------------------- */
+/* A heading that opens a major section of a screen. */
+h2.section{margin-top:var(--gap-section)}
+/* A block that follows another block rather than opening a section. */
+.block-top{margin-top:var(--gap-block)}
+/* Bumped past `.btn + .btn`, which is more specific and would otherwise win. */
+.btn.block-top{margin-top:var(--gap-block)}
+/* A paragraph carrying no trailing rhythm of its own. */
+.flush{margin:0}
+/* A short line tucked under the thing it annotates. */
+.subnote{margin:var(--gap-heading) 0 0}
+
+/* The three text-size buttons step up in size to preview their effect. */
+.sizectl .size-2{font-size:1.15rem}
+.sizectl .size-3{font-size:1.35rem}
+
+/* Entries in the version history. */
+.version .version-style{margin:0 0 var(--gap-tight)}
+.version .version-text{margin:0}
 
 [hidden]{display:none!important}
 </style>
@@ -302,15 +454,41 @@ caption{text-align:left;padding:.625rem;font-weight:700}
 
 <div class="wrap">
   <header class="mast">
-    <div>
+    <!-- Visible for the interviewer glancing at the participant's phone, but
+         out of the accessibility tree: it sits before <main> on every screen,
+         so a participant returning to the top of the page swiped through it
+         every single time. Nothing is lost — the study name is the page
+         <title>, and the participant ID is announced at session start and
+         printed on the style screen with the "tell your interviewer if that
+         is not right" check. No focusable content inside. -->
+    <div aria-hidden="true">
       <p class="eyebrow">Image description study</p>
-      <p class="muted" id="sessionLabel" style="margin:0">Not started</p>
+      <p class="muted flush" id="sessionLabel">Not started</p>
     </div>
-    <div class="sizectl" role="group" aria-label="Text size">
-      <button type="button" id="sizeA" aria-pressed="true" aria-label="Normal text size"><span aria-hidden="true">A</span></button>
-      <button type="button" id="sizeB" aria-pressed="false" aria-label="Larger text size" style="font-size:1.15rem"><span aria-hidden="true">A</span></button>
-      <button type="button" id="sizeC" aria-pressed="false" aria-label="Largest text size" style="font-size:1.35rem"><span aria-hidden="true">A</span></button>
-    </div>
+    <!-- Both presentation controls behind one disclosure: it is a single stop
+         before <main> instead of three, and it puts text size next to light and
+         dark, which is the same question asked twice. -->
+    <details class="display" id="displaySettings">
+      <summary><span>Display</span></summary>
+      <div>
+        <div class="setgroup" role="group" aria-labelledby="sizeLabel">
+          <p class="setlabel" id="sizeLabel">Text size</p>
+          <div class="sizectl">
+            <button type="button" id="sizeA" aria-pressed="true" aria-label="Normal text size"><span aria-hidden="true">A</span></button>
+            <button type="button" id="sizeB" class="size-2" aria-pressed="false" aria-label="Larger text size"><span aria-hidden="true">A</span></button>
+            <button type="button" id="sizeC" class="size-3" aria-pressed="false" aria-label="Largest text size"><span aria-hidden="true">A</span></button>
+          </div>
+        </div>
+        <div class="setgroup" role="group" aria-labelledby="themeLabel">
+          <p class="setlabel" id="themeLabel">Appearance</p>
+          <div class="themectl">
+            <button type="button" id="themeSystem" aria-pressed="true">System</button>
+            <button type="button" id="themeLight" aria-pressed="false">Light</button>
+            <button type="button" id="themeDark" aria-pressed="false">Dark</button>
+          </div>
+        </div>
+      </div>
+    </details>
   </header>
 
   <!-- Global announcements -->
@@ -327,7 +505,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <div class="card">
         <label class="field" for="pid">Participant ID</label>
         <p class="muted tight" id="pidHint">Your interviewer will give you this. Letters and numbers, for example P07.</p>
-        <input type="text" id="pid" name="pid" aria-describedby="pidHint"
+        <input type="text" id="pid" name="pid"
                autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go">
       </div>
 
@@ -364,7 +542,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <p>Your interviewer will tell you which one to choose.</p>
       <div id="imageList"></div>
 
-      <h2 style="margin-top:1.75rem">Or use your own camera</h2>
+      <h2 class="section">Or use your own camera</h2>
       <p class="muted">When your interviewer asks you to, you can take your own photos instead.</p>
       <button type="button" class="btn btn-secondary" id="toOwnPhotos">Take my own photos</button>
     </section>
@@ -375,7 +553,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <h1 id="captureH" tabindex="-1">Take a photo</h1>
       <p>Point your camera at anything nearby that you'd normally want described. You can take as many photos as you like during the session.</p>
 
-      <div class="card">
+      <div class="card stack">
         <input type="file" id="camInput" class="vh" accept="image/*" capture="environment">
         <label class="filelabel primary" for="camInput">Take a photo with the camera</label>
 
@@ -398,7 +576,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <div class="card">
         <label class="field" for="freeformText">Your description style</label>
         <p class="muted tight" id="freeformHint">For example, what it should include or leave out, how long it should be, and how it should sound.</p>
-        <textarea id="freeformText" rows="6" aria-describedby="freeformHint"></textarea>
+        <textarea id="freeformText" rows="6"></textarea>
       </div>
 
       <div id="freeformError" class="alertbox" role="alert"></div>
@@ -409,33 +587,52 @@ caption{text-align:left;padding:.625rem;font-weight:700}
 
     <!-- =========================== RESULT ============================ -->
     <section id="screen-result" aria-labelledby="resultH" hidden>
-      <h1 id="resultH" tabindex="-1">Your description</h1>
+      <h1 id="resultH" tabindex="-1">Your photo</h1>
 
       <div id="statusRow" class="status" role="status" aria-live="polite" hidden>
         <span class="spinner" aria-hidden="true"></span>
         <span id="statusText">Writing the description…</span>
       </div>
 
-      <h2 class="vh">Photo</h2>
-      <img id="preview" class="photo" alt="The photo you just took. A written description of it appears below." src="">
+      <!-- The photo is held here, undescribed, until the participant sends it.
+           That is where the interviewer's questions go: nothing has been
+           written yet, so there is nothing to spoil. Once sent, the
+           description is shown and spoken immediately — no second gate. -->
+      <div id="awaitingBlock" hidden>
+        <button type="button" class="btn btn-primary block-top" id="describeBtn">Describe this photo</button>
+      </div>
 
-      <h2 id="descH" style="margin-top:1.25rem">Description</h2>
+      <div id="describedBlock" hidden>
+      <h2 id="descH" class="block-top">Description</h2>
 
-      <!-- Nothing is spoken automatically: the participant decides when to
-           hear it, so the interviewer can ask what they were hoping to learn
-           from the photo first, and so it can be replayed as often as needed. -->
-      <button type="button" class="btn btn-primary" id="readBtn" hidden>Read the description</button>
-
-      <article class="sheet" id="sheet" aria-labelledby="descH" aria-busy="false">
+      <article class="sheet" id="sheet" aria-busy="false">
         <p class="versionline"><span id="versionLabel">Version 1</span></p>
         <p class="desc" id="descText" tabindex="-1"></p>
         <p class="stylesentence" id="styleSentence"></p>
       </article>
 
-      <button type="button" class="btn btn-secondary" id="preferBtn" hidden>Save this as the description I prefer</button>
+      <!-- Both actions on the description sit after it, so the text itself is
+           the first thing reached under the heading. Focus still lands here
+           when a new version arrives: the button names the version, and the
+           live region reads the text a moment later. -->
+      <button type="button" class="btn btn-secondary" id="readBtn" hidden>Read the description aloud</button>
 
-      <h2 style="margin-top:1.75rem">Change the style</h2>
-      <p class="muted">Pick the options you'd prefer, then write a new description. The photo stays the same.</p>
+      <button type="button" class="btn btn-secondary" id="preferBtn" hidden>Save this as the description I prefer</button>
+      </div><!-- /describedBlock -->
+
+      <!-- The photo sits BELOW the description on purpose. A full-width
+           portrait shot is taller than a phone viewport, so with the image
+           first the description started off-screen and had to be scrolled to.
+           It carries alt="" and is not a stop for a screen reader either way:
+           deliberately decorative, because the AI description above it IS its
+           text alternative and is the thing under study — any alt we wrote
+           would be a second, researcher-authored description competing with
+           the one being evaluated. -->
+      <img id="preview" class="photo" alt="" src="" hidden>
+
+      <div id="controlsBlock" hidden>
+      <h2 class="section">Change the style</h2>
+      <p class="muted" id="styleIntro">Pick the options you'd prefer, then write a new description. The photo stays the same.</p>
 
       <!-- Shown only while the current description came from the participant's
            own words, so the four settings below are never mistaken for the
@@ -448,26 +645,43 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       </div>
 
       <form id="styleForm" novalidate autocomplete="off">
-        <div id="controls"></div>
+        <!-- Collapsed while a free-text description is on screen: the four
+             groups are around thirty swipe stops of settings that did not
+             produce what the participant is looking at. The summary is a
+             native disclosure, so a screen reader announces it as a button
+             with expanded/collapsed state, and the contents leave the
+             accessibility tree entirely while closed. -->
+        <details id="controlsDetails" open>
+          <summary><span id="controlsSummary">Four style settings</span></summary>
+          <div id="controls"></div>
 
-        <div id="pendingNote" class="status" role="status" aria-live="polite" hidden>
-          <span id="pendingText"></span>
-        </div>
+          <div id="pendingNote" class="status" role="status" aria-live="polite" hidden>
+            <span id="pendingText"></span>
+          </div>
 
-        <button type="button" class="btn btn-primary" id="regenBtn">Write a new description with these settings</button>
-        <button type="button" class="btn btn-secondary" id="resetBtn">Go back to my starting style</button>
+          <!-- Everything that acts on the four settings lives with them, so
+               opening the disclosure gives you the settings AND the two buttons
+               that use them. In free-text mode the whole block is collapsed,
+               which is what removes the second blue button from the screen. -->
+          <div class="stack" id="controlsActions">
+            <button type="button" class="btn btn-primary" id="regenBtn">Write a new description with these settings</button>
+            <button type="button" class="btn btn-secondary" id="resetBtn">Go back to my starting style</button>
+          </div>
+        </details>
+
         <button type="button" class="btn btn-secondary" id="toFreeformBtn">Describe a style in my own words</button>
       </form>
 
-      <h2 style="margin-top:1.75rem">Earlier versions</h2>
+      <h2 class="section">Earlier versions</h2>
       <details id="historyDetails">
         <summary><span id="historySummary">Earlier versions of this description (0)</span></summary>
         <div id="historyList"></div>
       </details>
+      </div><!-- /controlsBlock -->
 
-      <button type="button" class="btn btn-secondary" id="newPhotoBtn">Choose another image or photo</button>
+      <button type="button" class="btn btn-secondary block-top" id="newPhotoBtn">Choose another image or photo</button>
 
-      <h2 style="margin-top:1.75rem">Finishing up</h2>
+      <h2 class="section">Finishing up</h2>
       <p class="muted tight">When your interviewer says you're done, use this. It saves a copy of everything from this session.</p>
       <button type="button" class="btn btn-secondary" id="endBtn">End session</button>
       <div id="endConfirm" hidden>
@@ -483,7 +697,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <!-- Polite, not role=alert: an assertive alert about the study's own
            plumbing will cut across a description being read aloud, and the
            participant can do nothing about it anyway. -->
-      <p class="muted" id="syncNote" role="status" aria-live="polite" style="margin:.5rem 0 0"></p>
+      <p class="muted subnote" id="syncNote" role="status" aria-live="polite"></p>
     </section>
 
     <!-- ========================== FINISHED =========================== -->
@@ -514,17 +728,25 @@ const CONFIG = {
      words of the description itself. */
   MAX_OUTPUT_TOKENS: 8000,
   SEED: null,                // set a number to match generate.py's determinism, or leave null
+  /* Ceiling for free-text descriptions. Matches the maximal specificity target
+     below: a participant's own instructions should be able to ask for anything
+     up to the longest style the survey used, but not past it, or free-text
+     output stops being comparable with the dimension cells. Without a cap,
+     "give me lots of detail" produced 185 words. */
+  FREEFORM_MAX_WORDS: 60,
+  /* Must match SCRIPT_VERSION in the Apps Script. Only used to tell the
+     participant which version a stale deployment should be reporting. */
+  COLLECTOR_VERSION: 12,
   IMAGE_DETAIL: "high",
 
-  /* How a finished description is presented.
-     false — the description is withheld until the participant asks for it.
-             Nothing about it is on screen or in the accessibility tree, so the
-             interviewer can ask what they hoped to learn from the photo without
-             a swipe spoiling the answer.
-     true  — revealed and spoken the moment it lands, the way Seeing AI and
-             Be My AI behave. More naturalistic, but there is then no window in
-             which to ask the intent question. */
-  AUTO_SPEAK: false,
+  /* Speak each new description through the live region the moment it lands,
+     the way Seeing AI and Be My AI do. The interviewer's window for intent
+     questions comes earlier now — the photo waits, undescribed, until the
+     participant presses "Describe this photo" — so there is no reason to make
+     them ask for the result as well. Set false and the description still
+     appears immediately; it just is not spoken until the replay button is
+     pressed. */
+  AUTO_SPEAK: true,
   REQUEST_TIMEOUT_MS: 90000,   // a hung request otherwise blocks the session forever
   RETRY_TRANSIENT: 2,          // extra attempts on 429 / 5xx / network drop
 
@@ -737,6 +959,8 @@ Rules:
 - Describe only what is actually visible in the image. Do not invent or assume details that are not shown. 
 - Do not guess the identities of people or named entities unless their names are legibly shown. Do not assume the age or gender of people. Do not name breeds, brands, or models unless legibly shown. Only describe visible attributes.
 - Transcribe any clearly visible text exactly as it appears, unless the user has asked for something so brief that transcription would not fit.
+- HARD LENGTH CEILING: never write more than ${CONFIG.FREEFORM_MAX_WORDS} words, no matter how much detail the user asks for. If their instructions would need more room than that, include what they said matters most and stop at the ceiling rather than running over. Only completing a verbatim transcription may exceed it, and by as little as possible.
+- If the user asks for something shorter than the ceiling, follow them. The ceiling is a maximum, not a target.
 - Name each object with the most common everyday term for it and use the same term throughout.
 - State exact counts for countable subjects or objects. If ten or fewer, do not use 'several,' 'many,' or 'multiple' where a number is determinable. If more than ten, use 'many.'
 - Do not begin with "Image of" or "Photo of." Start with the content.
@@ -747,7 +971,8 @@ If the user's instructions conflict with a rule above, follow the rule and other
 function buildFreeformMessage(text){
   return "Describe the attached image in this style, in my own words:\n\n" +
          text.trim() +
-         "\n\nWrite a single description following those preferences.";
+         "\n\nWrite a single description following those preferences, in no more than " +
+         CONFIG.FREEFORM_MAX_WORDS + " words.";
 }
 
 /* User message: the four dimension settings plus the target length. */
@@ -900,7 +1125,7 @@ const state = {
   freeformText: "",
   renderedDescriptionId: null,   // which version the sheet is currently showing
   readCounts: {},                // descriptionId -> times the participant played it
-  revealed: {},                  // descriptionId -> has the participant asked for it yet
+  awaitingDescribe: false,       // a photo is staged but not yet sent
   generating: false,
   warnedSync: false,
   pidFromLink: false
@@ -985,10 +1210,35 @@ function updateSyncPill(){
    SCREENS
    ================================================================= */
 const SCREENS = ["setup","style","images","capture","freeform","result","done"];
+/* Moving focus in the same frame as a visibility change is dropped by some
+   VoiceOver and TalkBack builds — the element is not in the accessibility tree
+   yet when focus() runs. Wait for the browser to paint, then confirm it landed
+   and retry once if it did not. */
+function focusSoon(el){
+  if (!el) return;
+  const go = () => {
+    el.focus();
+    /* Retry ONLY if the focus attempt was dropped — never if something else has
+       since taken focus legitimately. Two screens can queue a move in the same
+       turn (the screen heading, then the button on it), and a blind retry would
+       yank focus back to the first one after the second had already won. */
+    setTimeout(() => {
+      const a = document.activeElement;
+      if (a === el) return;
+      if (a && a !== document.body && a !== document.documentElement) return;
+      el.focus();
+    }, 150);
+  };
+  if (typeof requestAnimationFrame === "function"){
+    requestAnimationFrame(() => requestAnimationFrame(go));
+  } else {
+    setTimeout(go, 40);
+  }
+}
+
 function showScreen(name, focusId){
   SCREENS.forEach(s => { $("screen-" + s).hidden = (s !== name); });
-  const target = $(focusId);
-  if (target) setTimeout(() => target.focus(), 40);
+  focusSoon($(focusId));
 }
 
 /* The study-image screen only exists when there are study images, so the step
@@ -1015,19 +1265,39 @@ function looksHeic(file){
          /\.hei[cf]$/.test(n);
 }
 
-/* Loaded only when a HEIC actually turns up, so the common case pays nothing. */
+/* Loaded only when a HEIC actually turns up, so the common case pays nothing.
+   Timed out, because a script tag on a stalled connection fires neither onload
+   nor onerror — it simply never settles, and the participant is left on
+   "Preparing your photo…" with no way forward. The promise is also cleared on
+   failure so a second attempt actually retries instead of re-awaiting a
+   promise that already rejected. */
 function loadHeicDecoder(){
   if (heicDecoderPromise) return heicDecoderPromise;
   heicDecoderPromise = new Promise((resolve, reject) => {
     if (window.heic2any) return resolve(window.heic2any);
+    let settled = false;
+    const finish = (fn, arg) => { if (settled) return; settled = true; clearTimeout(timer); fn(arg); };
+    const timer = setTimeout(
+      () => finish(reject, new Error("The photo converter took too long to download.")), 15000);
     const tag = document.createElement("script");
     tag.src = HEIC_DECODER_SRC;
-    tag.onload = () => window.heic2any ? resolve(window.heic2any)
-                                       : reject(new Error("Decoder loaded but unavailable."));
-    tag.onerror = () => reject(new Error("Could not download the photo converter."));
+    tag.onload = () => window.heic2any ? finish(resolve, window.heic2any)
+                                       : finish(reject, new Error("Decoder loaded but unavailable."));
+    tag.onerror = () => finish(reject, new Error("Could not download the photo converter."));
     document.head.appendChild(tag);
-  });
+  }).catch(err => { heicDecoderPromise = null; throw err; });
   return heicDecoderPromise;
+}
+
+/* Belt and braces around the whole decode path. Any single step hanging —
+   a stalled decoder download, an <img> that never fires either event — would
+   otherwise freeze the session mid-interview with no recovery. */
+function withTimeout(promise, ms, message){
+  let timer = null;
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => { timer = setTimeout(() => rej(new Error(message)), ms); })
+  ]).finally(() => clearTimeout(timer));
 }
 
 function decodeViaImgTag(blob){
@@ -1090,10 +1360,10 @@ async function handleFile(file, source, researcher){
   state.renderedDescriptionId = null;
   $("readBtn").hidden = true;
   $("preferBtn").hidden = true;
-  $("sheet").hidden = true;
 
   try {
-    const img = await fileToCompressedJpeg(file);
+    const img = await withTimeout(fileToCompressedJpeg(file), 30000,
+      "The photo took too long to prepare.");
     const imageId = researcher ? researcher.id + "-" + uid("r").slice(2) : uid("img");
     const rec = {
       imageId,
@@ -1109,9 +1379,7 @@ async function handleFile(file, source, researcher){
     state.currentImage = Object.assign({ base64: img.base64, dataUrl: img.dataUrl }, rec);
     state.images.push(rec);
     $("preview").src = img.dataUrl;
-    $("preview").alt = researcher
-      ? "Study image: " + (researcher.label || researcher.id) + ". A written description of it appears below."
-      : "The photo you just took. A written description of it appears below.";
+    $("preview").hidden = false;
 
     // Upload the image itself before generating anything.
     await DB.put(rec.storageKey, {
@@ -1139,11 +1407,38 @@ async function handleFile(file, source, researcher){
     renderHistory();
     $("backToDescWrap").hidden = false;
 
-    await generate(true);
+    /* Stop here. The photo is staged and visible, nothing has been written,
+       and the interviewer can ask what the participant hopes to learn from it.
+       Generation starts only when they choose to send it. */
+    setBusy(false);
+    setAwaiting(true);
   } catch(err){
     setBusy(false);
+    restoreCurrentImageView();
     showError("That photo couldn't be prepared. " + (err.message || "Please try taking it again."));
     announce("The photo couldn't be prepared.");
+    /* Back to where a photo comes from, rather than stranding them on a result
+       screen for a photo that does not exist. */
+    if (researcher && RESEARCHER_IMAGES.length) showScreen("images", "imagesH");
+    else showScreen("capture", "captureH");
+  }
+}
+
+/* The result screen has two states: a staged photo waiting to be sent, and a
+   photo that has been described. Everything description-shaped lives inside
+   describedBlock, so switching states cannot leave a stray heading or an
+   orphaned control reachable. */
+function setAwaiting(on){
+  state.awaitingDescribe = !!on;
+  $("awaitingBlock").hidden = !on;
+  $("describedBlock").hidden = !!on;
+  $("controlsBlock").hidden = !!on;
+  /* Cleared on both transitions: leaving it set would park a stale dimmed
+     state on a control the participant will meet again on the next photo. */
+  $("describeBtn").setAttribute("aria-disabled", "false");
+  if (on){
+    focusSoon($("describeBtn"));
+    announce("Photo ready. Choose “Describe this photo” when you want a description.");
   }
 }
 
@@ -1160,6 +1455,16 @@ function setBusy(on, msg){
   state.generating = on;
   $("statusRow").hidden = !on;
   if (msg) $("statusText").textContent = msg;
+  /* "Describe this photo" hides itself the moment it is pressed, which drops
+     the VoiceOver cursor to the top of the document. Put focus on the screen
+     heading instead, so the participant keeps their place and hears the
+     spinner's live region from somewhere sensible. */
+  if (on){
+    const ae = document.activeElement;
+    if (!ae || ae === document.body || (ae.closest && ae.closest("[hidden]"))){
+      $("resultH").focus();
+    }
+  }
   $("sheet").setAttribute("aria-busy", on ? "true" : "false");
   /* aria-disabled, not the disabled property. On iOS, disabling the button the
      participant just activated destroys VoiceOver focus and dumps the cursor
@@ -1170,9 +1475,10 @@ function setBusy(on, msg){
     const el = $(id);
     if (el) el.setAttribute("aria-disabled", on ? "true" : "false");
   });
-  /* readBtn is deliberately NOT dimmed: replaying the version already on
-     screen while the next one is being written is a reasonable thing to do,
-     and it reads from the rendered record, not from whatever is in flight. */
+  /* readBtn used to stay live during generation so the current version could
+     be replayed while the next was written. The previous version is now taken
+     off screen while writing, so there is nothing to replay and the button
+     goes with it — see generate(). */
   /* statusRow is itself a live region, so setting its text announces it.
      Announcing again through #live would double-speak. */
 }
@@ -1207,7 +1513,8 @@ function describeEmpty(data, choice){
     return "The study database answered this model request instead of OpenAI, which means the " +
            "deployed Apps Script is an older version that predates the proxy. In the Apps Script " +
            "editor: Deploy > Manage deployments > edit the existing deployment > Version: New version. " +
-           "Then open the /exec URL in a browser and check it reports version " + 11 + ". " +
+           "Then open the /exec URL in a browser and check it reports version " +
+           CONFIG.COLLECTOR_VERSION + ". " +
            "(A row will have landed on the Events tab with event_type 'openai' — that can be deleted.)";
   }
 
@@ -1331,7 +1638,7 @@ async function callModel(url, headers, body){
   throw lastErr || new Error("The description service could not be reached.");
 }
 
-async function generate(isDefault){
+async function generate(isFirst){
   /* Pin the image this request belongs to. state.currentImage can change while
      the model call is in flight — a participant can start a new photo from the
      OS camera sheet without touching a guarded button — and reading it again
@@ -1354,8 +1661,16 @@ async function generate(isDefault){
   const systemPrompt = freeform ? SYSTEM_PROMPT_FREEFORM : SYSTEM_PROMPT;
   const t0 = performance.now();
 
-  setBusy(true, isDefault ? "Writing the description…" : "Writing a new description in your chosen style…");
+  setBusy(true, isFirst ? "Writing the description…" : "Writing a new description in your chosen style…");
   clearError();
+
+  /* Take the previous version off the screen while the next one is written.
+     Leaving it up means the top of the page shows one description while the
+     status line says another is being written — and a participant who looks
+     away and back reads the old text as if it were the new one. Remembered so
+     a failed rewrite can put it back rather than leaving an empty screen. */
+  const previousId = state.renderedDescriptionId;
+  $("describedBlock").hidden = true;
 
   try {
     const body = {
@@ -1416,7 +1731,6 @@ async function generate(isDefault){
       participantId: state.participantId,
       imageId: img.imageId,
       generationIndex: genIndex,
-      isDefault: !!isDefault,
       style,
       styleSentence: freeform ? "written from your own words" : styleSentence(dimStyle),
       text,
@@ -1448,17 +1762,18 @@ async function generate(isDefault){
     /* Record and upload regardless; only paint the screen if the participant
        is still looking at this image. */
     if (stillCurrent()){
+      $("describedBlock").hidden = false;
       renderDescription(record);
       renderHistory();
     }
     logEvent("description_generated", {
       descriptionId, imageId: record.imageId, generationIndex: genIndex,
-      isDefault: !!isDefault, styleMode: record.styleMode, style, latencyMs: record.latencyMs
+      styleMode: record.styleMode, style, latencyMs: record.latencyMs
     });
     Sync.push({
       type: "description",
       descriptionId, imageId: record.imageId,
-      generationIndex: genIndex, isDefault: !!isDefault, style,
+      generationIndex: genIndex, style,
       targetWords: record.targetWords,
       styleMode: record.styleMode,
       freeformText: record.freeformText,
@@ -1481,14 +1796,27 @@ async function generate(isDefault){
        readiness by announcing the control — no live-region race, no long
        one-shot read that cannot be recovered, and a natural pause for the
        interviewer to ask what the participant hoped to learn from this photo. */
-    if (CONFIG.AUTO_SPEAK) readAloud(record);
-    else $("readBtn").focus();
+    /* Focus the replay button first so the VoiceOver cursor has somewhere
+       sensible to land (the describe button it was on has just gone away),
+       then let the live region speak the description. */
+    focusSoon($("readBtn"));
+    if (CONFIG.AUTO_SPEAK) readAloud(record, null, true);
   } catch(err){
     if (!stillCurrent()){
       logEvent("description_error", { imageId: img.imageId, style, message: String(err && err.message) });
       return;
     }
     setBusy(false);
+    /* Put the send button back so a failed first attempt can simply be
+       retried, rather than leaving a result screen with no result. */
+    if (!currentVersions().length) setAwaiting(true);
+    else {
+      /* A failed REWRITE should cost them nothing: restore the version that
+         was on screen before, rather than leaving the gap where it was. */
+      const prev = versionById(previousId);
+      $("describedBlock").hidden = false;
+      if (prev){ renderDescription(prev); renderHistory(); updateModeUI(); }
+    }
     showError("The description couldn't be written. " + (err.message || "") + " Try again, or take a new photo.");
     announce("The description couldn't be written.");
     logEvent("description_error", { imageId: img.imageId, style, message: String(err && err.message) });
@@ -1510,10 +1838,13 @@ function versionById(id){
 }
 function renderedRecord(){ return versionById(state.renderedDescriptionId); }
 
+/* "Your starting style" is a claim about the SETTINGS, so it is keyed off the
+   settings — not off being the first version. Reset the four options back and
+   regenerate and version 3 earns the label just as version 1 did. */
 function versionTitle(rec){
   return "Version " + rec.generationIndex +
     (rec.styleMode === "freeform" ? " — your own words"
-      : (rec.isDefault ? " — your starting style" : "")) +
+      : (rec.matchesParticipantBase ? " — your starting style" : "")) +
     (rec.preferred ? " (the description you prefer)" : "");
 }
 
@@ -1533,26 +1864,21 @@ function withFocusRestored(fn){
    hedging version gets replayed before a decision is itself a finding.
    `btn` is the control that was pressed, relabelled in place rather than by
    rebuilding the list around it. */
-function readAloud(rec, btn){
+function readAloud(rec, btn, auto){
   if (!rec) return;
-  const first = !state.revealed[rec.descriptionId];
-  state.revealed[rec.descriptionId] = true;
   const n = (state.readCounts[rec.descriptionId] = (state.readCounts[rec.descriptionId] || 0) + 1);
-  if (rec.descriptionId === state.renderedDescriptionId){
-    /* Unhide before announcing: the text has to be in the accessibility tree
-       for the participant to navigate back to it after the read finishes. */
-    $("sheet").hidden = false;
-    updatePreferBtn();
-  }
   announce("Version " + rec.generationIndex + ". " + rec.text);
   if (rec.descriptionId === state.renderedDescriptionId) updateReadBtn();
   else if (btn) btn.textContent = "Read version " + rec.generationIndex + " again";
   logEvent("description_read", {
     descriptionId: rec.descriptionId, imageId: rec.imageId,
-    generationIndex: rec.generationIndex, readIndex: n, firstListen: first
+    generationIndex: rec.generationIndex, readIndex: n, auto: !!auto
   });
+  /* The automatic first reading and a deliberate replay are different acts.
+     Replays are the interesting measure — how often a hedging version has to
+     be heard again before someone can judge it. */
   Sync.push({
-    type: "event", eventType: first ? "description_revealed" : "description_replayed",
+    type: "event", eventType: auto ? "description_spoken" : "description_replayed",
     imageId: rec.imageId, style: rec.style,
     detail: "version " + rec.generationIndex + ", played " + n +
             (n === 1 ? " time" : " times")
@@ -1594,18 +1920,16 @@ function updateReadBtn(){
   const btn = $("readBtn");
   if (!rec){ btn.hidden = true; return; }
   btn.hidden = false;
-  if (state.revealed[rec.descriptionId]){
-    btn.textContent = "Read version " + rec.generationIndex + " again";
-  } else {
-    btn.textContent = rec.generationIndex === 1
-      ? "Read the description" : "Read version " + rec.generationIndex;
-  }
+  /* "again" is a lie until it has been read once — which happens with
+     AUTO_SPEAK off, and on any host where the live region does not fire. */
+  btn.textContent = "Read version " + rec.generationIndex +
+    ((state.readCounts[rec.descriptionId] || 0) ? " again" : " aloud");
 }
 
 function updatePreferBtn(){
   const rec = renderedRecord();
   const btn = $("preferBtn");
-  if (!rec || !state.revealed[rec.descriptionId]){ btn.hidden = true; return; }
+  if (!rec){ btn.hidden = true; return; }
   btn.hidden = false;
   btn.textContent = rec.preferred
     ? "Version " + rec.generationIndex + " is the description you prefer"
@@ -1615,6 +1939,41 @@ function updatePreferBtn(){
 /* =================================================================
    RENDERING
    ================================================================= */
+/* After a photo fails to load or decode there is no current image, but the
+   previous one's preview, description and buttons are still on screen — and
+   regenerating would file a new version against that older photo. Wipe the
+   slate instead of leaving a screen that lies about which photo it shows. */
+function clearCurrentImage(){
+  state.currentImage = null;
+  state.renderedDescriptionId = null;
+  state.lastGeneratedStyle = null;
+  $("readBtn").hidden = true;
+  $("preferBtn").hidden = true;
+  $("awaitingBlock").hidden = true;
+  $("describedBlock").hidden = true;
+  $("controlsBlock").hidden = true;
+  state.awaitingDescribe = false;
+  $("preview").hidden = true;
+  $("preview").removeAttribute("src");
+  renderHistory();
+  updateModeUI();
+}
+
+/* A photo that fails to decode should cost the participant nothing. The result
+   screen was already reset in anticipation of the new photo, so put the
+   previous one back rather than leaving a blank sheet or a stale one. */
+function restoreCurrentImageView(){
+  const versions = currentVersions();
+  if (!state.currentImage){ clearCurrentImage(); return; }
+  $("preview").src = state.currentImage.dataUrl;
+  $("preview").hidden = false;
+  if (!versions.length){ setAwaiting(true); return; }   // staged but never sent
+  setAwaiting(false);
+  renderDescription(versions[versions.length - 1]);
+  renderHistory();
+  updateModeUI();
+}
+
 function renderVersionLine(){
   const rec = renderedRecord();
   if (!rec) return;
@@ -1622,9 +1981,7 @@ function renderVersionLine(){
 }
 function renderDescription(rec){
   state.renderedDescriptionId = rec.descriptionId;
-  /* hidden removes it from the accessibility tree entirely, so swiping past
-     the button cannot reach the text. Visually hiding it would not. */
-  $("sheet").hidden = !state.revealed[rec.descriptionId];
+  $("sheet").hidden = false;
   $("versionLabel").textContent = versionTitle(rec);
   $("descText").textContent = rec.text;
   $("styleSentence").textContent = rec.styleMode === "freeform"
@@ -1657,12 +2014,12 @@ function renderHistory(){
     h.textContent = versionTitle(rec);
 
     const s = document.createElement("p");
-    s.className = "muted"; s.style.margin = "0 0 .375rem";
+    s.className = "muted version-style";
     s.textContent = rec.styleMode === "freeform"
       ? "Written from your own words." : rec.styleSentence;
 
     const t = document.createElement("p");
-    t.style.margin = "0"; t.textContent = rec.text;
+    t.className = "version-text"; t.textContent = rec.text;
 
     /* Stable ids so withFocusRestored can find the same control again after a
        re-render. */
@@ -1672,7 +2029,7 @@ function renderHistory(){
     readB.id = "read-" + rec.descriptionId;
     readB.className = "btn btn-secondary";
     readB.textContent = "Read version " + rec.generationIndex + (played ? " again" : "");
-    readB.addEventListener("click", () => readAloud(rec, readB));
+    readB.addEventListener("click", () => readAloud(rec, readB, false));
 
     /* Any version can be the preferred one. Participants routinely settle on
        something they heard three rewrites ago, and forcing them to regenerate
@@ -1702,13 +2059,36 @@ function setNote(text){
 
 /* Keeps the result screen honest about which of the two style routes produced
    what is on screen, and makes every button say what it will actually do. */
+/* Only forced on a mode CHANGE, so a participant who collapses the settings
+   themselves while using the four dimensions is not overridden the next time
+   anything re-renders. */
+function syncControlsDisclosure(freeform){
+  if (state.lastModeFreeform === freeform) return;
+  state.lastModeFreeform = freeform;
+  $("controlsDetails").open = !freeform;
+  $("controlsSummary").textContent = freeform
+    ? "Show four style settings" : "Four style settings";
+}
+
 function updateModeUI(){
-  const freeform = state.styleMode === "freeform";
+  /* Keyed off the description actually ON SCREEN, not off state.styleMode.
+     styleMode only says which prompt the NEXT generation will use, and the two
+     drift apart the moment something changes the mode without regenerating —
+     which "Go back to my starting style" does. Reading the displayed record
+     instead means the banner and every button label describe what the
+     participant is actually looking at. */
+  const shown = renderedRecord();
+  const freeform = !!shown && shown.styleMode === "freeform";
   $("freeformActive").hidden = !freeform;
+  $("styleIntro").hidden = freeform;
+  syncControlsDisclosure(freeform);
 
   if (freeform){
     $("freeformEcho").textContent = state.freeformText || "";
-    setNote("The description above came from your own words. The four settings below were not used to write it.");
+    /* No note here: the heading of the box directly above already says "This
+       description came from your own words", and repeating it is one more
+       thing to swipe past for no new information. */
+    setNote("");
     $("regenBtn").textContent = "Write a description with these four settings instead";
     return;
   }
@@ -1724,7 +2104,7 @@ function updateModeUI(){
 }
 
 /* ---------- style controls ---------- */
-function buildControls(hostId, prefix, onChange, initial){
+function buildControls(hostId, prefix, onChange, initial, headingTag){
   const host = $(hostId);
   if (!DIMENSION_ORDER.length){
     const keys = DIMENSIONS.map(d => d.key);
@@ -1738,33 +2118,40 @@ function buildControls(hostId, prefix, onChange, initial){
        to the rotor, so reaching the regenerate button from the description
        means swiping past every option and every definition — about thirty
        stops. With them it is four. */
-    const head = document.createElement("h3");
+    /* Level, not appearance: on the setup screen these sit directly under the
+       h1, on the result screen they sit under the "Change the style" h2.
+       Hard-coding h3 skipped a level on the setup screen, which breaks
+       heading-level navigation. .dimhead keeps them looking identical. */
+    const head = document.createElement(headingTag || "h3");
     head.className = "dimhead";
     head.id = prefix + "-head-" + dim.key;
     head.textContent = dim.label;
     host.appendChild(head);
 
+    /* The heading IS the group's name — aria-labelledby points at it rather
+       than a second hidden <legend> carrying the same string, which screen
+       readers announce again on entering the group. */
     const fs = document.createElement("fieldset");
-    const lg = document.createElement("legend");
-    lg.className = "vh";
-    lg.textContent = dim.label;
+    fs.setAttribute("aria-labelledby", head.id);
     const hint = document.createElement("p");
     /* Prefixed: buildControls runs once for the setup screen and once for the
        per-photo controls, so an unprefixed id would exist twice and every
        aria-describedby would resolve to the first copy. */
-    hint.className = "hint"; hint.id = prefix + "-hint-" + dim.key; hint.textContent = dim.hint;
-    fs.setAttribute("aria-describedby", hint.id);
-    hint.classList.add("tight");
+    hint.className = "hint tight"; hint.id = prefix + "-hint-" + dim.key; hint.textContent = dim.hint;
     const opts = document.createElement("div");
     opts.className = "options";
 
     order.forEach(lvl => {
-      /* The definition sits OUTSIDE the label, referenced by aria-describedby.
-         Inside the label it would be swallowed into the radio's accessible
-         name, so every swipe would read "Assertive, directly states what the
-         AI model thinks is in the image, radio button, 1 of 2" before the
-         participant could tell where they were. As a description it comes
-         after the role and position, and can be skipped. */
+      /* The definition sits OUTSIDE the label so it stays out of the radio's
+         accessible name — otherwise every swipe would read "Assertive,
+         directly states what the AI model thinks is in the image, radio
+         button, 1 of 2" before the participant could tell where they were.
+         It is deliberately NOT wired up with aria-describedby either: it is
+         visible, navigable text sitting next in the reading order, and
+         pointing at it as a description makes screen readers read it twice —
+         once with the radio, once when the swipe lands on the paragraph.
+         Plain reading order also survives "Speak Hints" being switched off,
+         which aria-describedby does not. */
       const wrap = document.createElement("div");
       wrap.className = "opt";
 
@@ -1780,7 +2167,6 @@ function buildControls(hostId, prefix, onChange, initial){
       if (initial && initial[dim.key] === lvl.key) input.checked = true;
 
       const descId = input.id + "-desc";
-      input.setAttribute("aria-describedby", descId);
       input.addEventListener("change", () => {
         opts.querySelectorAll(".opt").forEach(o => o.classList.remove("is-checked"));
         wrap.classList.add("is-checked");
@@ -1805,13 +2191,20 @@ function buildControls(hostId, prefix, onChange, initial){
         if (input.checked) return;
         input.checked = true;
         input.dispatchEvent(new Event("change", { bubbles: true }));
+        /* This path is reachable by a VoiceOver or TalkBack double-tap on the
+           definition paragraph, which is not a control and announces nothing
+           of its own. Without this the participant's answer would move in
+           silence while they were only trying to re-read the definition.
+           A change made through the label needs no announcement — the radio
+           announces its own selection. */
+        announce(lvl.label + " selected.");
       });
 
       wrap.append(lab, bl);
       opts.appendChild(wrap);
     });
 
-    fs.append(lg, hint, opts);
+    fs.append(hint, opts);
     host.appendChild(fs);
   });
 }
@@ -1861,8 +2254,8 @@ function syncControlsFromState(){
    WIRING
    ================================================================= */
 buildImageList();
-buildControls("controls", "opt", onStyleChange, null);
-buildControls("setupControls", "set", onSetupStyleChange, null);
+buildControls("controls", "opt", onStyleChange, null, "h3");     // under "Change the style" (h2)
+buildControls("setupControls", "set", onSetupStyleChange, null, "h2"); // directly under the h1
 
 /* Browsers restore form state across a reload and when a page is resurrected
    from the back/forward cache. For a study measuring unprompted choices, a
@@ -2011,21 +2404,39 @@ function buildImageList(){
 
 async function useResearcherImage(img){
   clearError();
-  showScreen("result", "resultH");
-  setBusy(true, "Loading the study image…");
+  announce("Loading the study image.");
+  /* Fetch first, switch screens second. If the file is missing, the
+     participant stays on the picker and nothing about the previous photo is
+     disturbed. */
+  let file;
   try {
     const res = await fetch(img.src);
     if (!res.ok) throw new Error("Status " + res.status + ".");
     const blob = await res.blob();
-    const file = new File([blob], img.id + ".jpg", { type: blob.type || "image/jpeg" });
-    await handleFile(file, "researcher", img);
+    file = new File([blob], img.id + ".jpg", { type: blob.type || "image/jpeg" });
   } catch(err){
-    setBusy(false);
     showError("That study image could not be loaded. " + (err.message || "") +
       " Tell your interviewer, or take a photo instead.");
     announce("The study image could not be loaded.");
+    return;
   }
+  await handleFile(file, "researcher", img);
 }
+
+/* ---------- sending the staged photo ---------- */
+$("describeBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
+  if (!state.awaitingDescribe || !state.currentImage) return;
+  $("describeBtn").setAttribute("aria-disabled", "true");
+  logEvent("describe_requested", { imageId: state.currentImage.imageId });
+  /* Timestamped separately from image_captured, so the gap between taking the
+     photo and sending it measures how long the intent conversation ran. */
+  Sync.push({ type: "event", eventType: "describe_requested",
+    imageId: state.currentImage.imageId,
+    detail: "participant sent the photo to be described" });
+  setAwaiting(false);
+  generate(true);
+});
 
 /* ---------- reading and preferring the current version ---------- */
 $("readBtn").addEventListener("click", () => readAloud(renderedRecord()));
@@ -2093,7 +2504,9 @@ $("regenBtn").addEventListener("click", () => {
 
 $("resetBtn").addEventListener("click", () => {
   if (busyBlocked()) return;
-  state.styleMode = "dimensions";
+  /* Resets the four settings only. It deliberately does NOT change styleMode:
+     nothing has been rewritten yet, so the description on screen is still
+     whatever produced it, and updateModeUI keeps saying so. */
   state.currentStyle = Object.assign({}, state.baseStyle);
   syncControlsFromState();
   logEvent("style_reset", { imageId: state.currentImage ? state.currentImage.imageId : null });
@@ -2179,15 +2592,66 @@ $("endYesBtn").addEventListener("click", async () => {
   }
 });
 
-/* Text size */
+/* =================================================================
+   DISPLAY SETTINGS
+   Presentation preference is not a side issue for this population: a
+   participant reading against the wrong polarity for 75 minutes is fighting
+   the page rather than judging the descriptions, which is what we are asking
+   them about. Both choices are logged, because how someone sets up a reading
+   surface sits next to the research question.
+   ================================================================= */
+function logSetting(type, detail){
+  logEvent(type, { detail });
+  /* Nothing is posted before a session exists — the row would carry a null
+     session id and be unattachable. */
+  if (state.sessionId) Sync.push({ type: "event", eventType: type, detail });
+}
+
+/* ---- text size ---- */
 const SIZES = { sizeA:1, sizeB:1.25, sizeC:1.5 };
+const SIZE_NAMES = { sizeA:"normal", sizeB:"larger", sizeC:"largest" };
 Object.keys(SIZES).forEach(id => {
   $(id).addEventListener("click", () => {
     document.documentElement.style.setProperty("--step", SIZES[id]);
     Object.keys(SIZES).forEach(o => $(o).setAttribute("aria-pressed", o === id ? "true" : "false"));
-    announce("Text size changed.");
+    announce("Text size: " + SIZE_NAMES[id] + ".");
+    logSetting("text_size_changed", SIZE_NAMES[id] + " (" + SIZES[id] + "x)");
   });
 });
+
+/* ---- light / dark ----
+   Three options, not a toggle. A two-state switch has to start somewhere, and
+   whichever state it starts in overrides the phone setting of everyone who
+   already chose deliberately. "System" default means the majority who already
+   have it right are not touched, and only the mismatched minority intervene. */
+const THEMES = { themeSystem:"system", themeLight:"light", themeDark:"dark" };
+const darkQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+let themeChoice = "system";
+
+function resolvedTheme(){
+  if (themeChoice === "dark") return "dark";
+  if (themeChoice === "light") return "light";
+  return (darkQuery && darkQuery.matches) ? "dark" : "light";
+}
+function applyTheme(){
+  document.documentElement.classList.toggle("theme-dark", resolvedTheme() === "dark");
+}
+/* Following the system means following it as it CHANGES — a phone on automatic
+   light/dark can flip mid-session at sunset. */
+if (darkQuery && darkQuery.addEventListener){
+  darkQuery.addEventListener("change", () => { if (themeChoice === "system") applyTheme(); });
+}
+Object.keys(THEMES).forEach(id => {
+  $(id).addEventListener("click", () => {
+    themeChoice = THEMES[id];
+    Object.keys(THEMES).forEach(o => $(o).setAttribute("aria-pressed", o === id ? "true" : "false"));
+    applyTheme();
+    announce("Appearance: " + themeChoice +
+      (themeChoice === "system" ? " (following your phone, currently " + resolvedTheme() + ")" : "") + ".");
+    logSetting("appearance_changed", themeChoice + " -> showing " + resolvedTheme());
+  });
+});
+applyTheme();
 
 /* Enter key on the participant ID field starts the session */
 $("pid").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); $("startBtn").click(); } });
