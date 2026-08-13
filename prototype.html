@@ -26,7 +26,10 @@
   --radius:12px;
   --tap:48px;
   --step:1;
-  font-size:calc(17px * var(--step));
+  /* Percentage, not px: a px root silently overrides the browser's own
+     default-font-size setting, which is the first thing many low vision
+     users change. 106.25% of a 16px default is the same 17px as before. */
+  font-size:calc(106.25% * var(--step));
 }
 @media (prefers-color-scheme: dark){
   :root{
@@ -147,7 +150,7 @@ input[type=password]{
 /* --- Signature element: the description sheet ------------------ */
 .sheet{
   background:var(--paper);
-  border:1px solid var(--line);
+  border:1px solid var(--line-strong);
   border-left:6px solid var(--brand);
   border-radius:var(--radius);
   padding:1.125rem 1.125rem 1.25rem;
@@ -166,12 +169,25 @@ input[type=password]{
   padding-top:.75rem;border-top:1px solid var(--line);
 }
 
+/* Free-text mode banner on the result screen */
+.modebox{
+  border:2px solid var(--line-strong);border-radius:var(--radius);
+  background:var(--surface);padding:.875rem;margin:0 0 1.25rem;
+}
+.modebox h3{margin:0 0 .375rem}
+.modebox .own{
+  margin:0 0 .75rem;font-style:normal;color:var(--ink);
+  border-left:3px solid var(--line-strong);padding-left:.75rem;
+}
+
 /* Style controls: radios as full-width rows */
 fieldset{
   border:1px solid var(--line);border-radius:var(--radius);
   padding:.75rem .875rem 1rem;margin:0 0 1rem;background:var(--paper);
 }
 legend{font-weight:700;padding:0 .375rem;font-size:1.0625rem}
+.dimhead{margin:1.5rem 0 .375rem;font-size:1.0625rem}
+#controls .dimhead:first-child,#setupControls .dimhead:first-child{margin-top:0}
 fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:.25rem 0 .75rem}
 .options{display:flex;flex-direction:column;gap:.5rem}
 .opt{
@@ -213,7 +229,7 @@ fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:.25rem 0 .75rem}
 }
 
 /* History */
-details{border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);margin-bottom:1rem}
+details{border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--paper);margin-bottom:1rem}
 summary{
   min-height:var(--tap);display:flex;align-items:center;
   padding:.75rem .875rem;font-weight:650;cursor:pointer;border-radius:var(--radius);
@@ -221,6 +237,7 @@ summary{
 details > div{padding:0 .875rem .875rem}
 .version{border-top:1px solid var(--line);padding:.875rem 0 0;margin-top:.875rem}
 .version:first-child{border-top:0;margin-top:0}
+.version .btn{margin-top:.625rem}
 
 /* Status regions */
 .status{
@@ -328,7 +345,7 @@ caption{text-align:left;padding:.625rem;font-weight:700}
 
     <!-- ========================= STYLE SETUP ========================= -->
     <section id="screen-style" aria-labelledby="styleH" hidden>
-      <p class="muted tight">Step 1 of 4</p>
+      <p class="muted tight" id="stepStyle">Step 1 of 3</p>
       <h1 id="styleH" tabindex="-1">Set up your description style</h1>
       <p class="muted" id="styleWho"></p>
       <p>Before you take any photos, choose how you'd like descriptions written. Nothing is selected yet — pick one option in each of the four groups. These become your starting settings for every photo, and you can change them at any point during the session.</p>
@@ -340,9 +357,21 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       </form>
     </section>
 
+    <!-- ======================== STUDY IMAGES ========================= -->
+    <section id="screen-images" aria-labelledby="imagesH" hidden>
+      <p class="muted tight" id="stepImages">Step 2 of 3</p>
+      <h1 id="imagesH" tabindex="-1">Study images</h1>
+      <p>Your interviewer will tell you which one to choose.</p>
+      <div id="imageList"></div>
+
+      <h2 style="margin-top:1.75rem">Or use your own camera</h2>
+      <p class="muted">When your interviewer asks you to, you can take your own photos instead.</p>
+      <button type="button" class="btn btn-secondary" id="toOwnPhotos">Take my own photos</button>
+    </section>
+
     <!-- =========================== CAPTURE =========================== -->
     <section id="screen-capture" aria-labelledby="captureH" hidden>
-      <p class="muted tight">Step 4 of 4</p>
+      <p class="muted tight" id="stepCapture">Step 3 of 3</p>
       <h1 id="captureH" tabindex="-1">Take a photo</h1>
       <p>Point your camera at anything nearby that you'd normally want described. You can take as many photos as you like during the session.</p>
 
@@ -359,32 +388,6 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <p class="muted">Photos and descriptions from this session are saved to the study's database so the interviewer can follow along with you.</p>
       <p id="backToDescWrap" hidden><button type="button" class="btn btn-secondary" id="backToDesc">Back to the current description</button></p>
       <p><button type="button" class="btn btn-quiet" id="editStyleBtn">Change my starting style settings</button></p>
-    </section>
-
-    <!-- ===================== SURVEY COMPARISON ======================= -->
-    <section id="screen-survey" aria-labelledby="surveyH" hidden>
-      <p class="muted tight">Step 2 of 4</p>
-      <h1 id="surveyH" tabindex="-1">Your earlier answers</h1>
-      <p>You answered some of these questions in the survey you took before this session. Here's what you said then, next to what you just chose.</p>
-
-      <div id="surveyCompare"></div>
-
-      <p>You can keep what you just chose, or switch to your survey answers.</p>
-      <button type="button" class="btn btn-primary" id="keepNewBtn">Keep what I just chose</button>
-      <button type="button" class="btn btn-secondary" id="useSurveyBtn">Use my survey answers instead</button>
-      <button type="button" class="btn btn-quiet" id="backToStyleBtn">Go back and change my settings</button>
-    </section>
-
-    <!-- ======================== STUDY IMAGES ========================= -->
-    <section id="screen-images" aria-labelledby="imagesH" hidden>
-      <p class="muted tight">Step 3 of 4</p>
-      <h1 id="imagesH" tabindex="-1">Study images</h1>
-      <p>Your interviewer will tell you which one to choose.</p>
-      <div id="imageList"></div>
-
-      <h2 style="margin-top:1.75rem">Or use your own camera</h2>
-      <p class="muted">When your interviewer asks you to, you can take your own photos instead.</p>
-      <button type="button" class="btn btn-secondary" id="toOwnPhotos">Take my own photos</button>
     </section>
 
     <!-- ========================== FREE TEXT ========================== -->
@@ -417,14 +420,32 @@ caption{text-align:left;padding:.625rem;font-weight:700}
       <img id="preview" class="photo" alt="The photo you just took. A written description of it appears below." src="">
 
       <h2 id="descH" style="margin-top:1.25rem">Description</h2>
+
+      <!-- Nothing is spoken automatically: the participant decides when to
+           hear it, so the interviewer can ask what they were hoping to learn
+           from the photo first, and so it can be replayed as often as needed. -->
+      <button type="button" class="btn btn-primary" id="readBtn" hidden>Read the description</button>
+
       <article class="sheet" id="sheet" aria-labelledby="descH" aria-busy="false">
         <p class="versionline"><span id="versionLabel">Version 1</span></p>
         <p class="desc" id="descText" tabindex="-1"></p>
         <p class="stylesentence" id="styleSentence"></p>
       </article>
 
+      <button type="button" class="btn btn-secondary" id="preferBtn" hidden>Save this as the description I prefer</button>
+
       <h2 style="margin-top:1.75rem">Change the style</h2>
       <p class="muted">Pick the options you'd prefer, then write a new description. The photo stays the same.</p>
+
+      <!-- Shown only while the current description came from the participant's
+           own words, so the four settings below are never mistaken for the
+           thing that produced it. -->
+      <div class="modebox" id="freeformActive" hidden>
+        <h3>This description came from your own words</h3>
+        <p class="own" id="freeformEcho"></p>
+        <button type="button" class="btn btn-primary" id="regenFreeformBtn">Write it again in my own words</button>
+        <button type="button" class="btn btn-secondary" id="editFreeformBtn">Edit what I wrote</button>
+      </div>
 
       <form id="styleForm" novalidate autocomplete="off">
         <div id="controls"></div>
@@ -435,7 +456,6 @@ caption{text-align:left;padding:.625rem;font-weight:700}
 
         <button type="button" class="btn btn-primary" id="regenBtn">Write a new description with these settings</button>
         <button type="button" class="btn btn-secondary" id="resetBtn">Go back to my starting style</button>
-        <button type="button" class="btn btn-secondary" id="preferBtn">Save this as the style I prefer</button>
         <button type="button" class="btn btn-secondary" id="toFreeformBtn">Describe a style in my own words</button>
       </form>
 
@@ -460,6 +480,10 @@ caption{text-align:left;padding:.625rem;font-weight:700}
         <span>Saved to study database: <span class="pill" id="syncPill">Saving…</span></span>
         <button type="button" class="btn btn-quiet" id="retrySync" hidden>Try saving again</button>
       </div>
+      <!-- Polite, not role=alert: an assertive alert about the study's own
+           plumbing will cut across a description being read aloud, and the
+           participant can do nothing about it anyway. -->
+      <p class="muted" id="syncNote" role="status" aria-live="polite" style="margin:.5rem 0 0"></p>
     </section>
 
     <!-- ========================== FINISHED =========================== -->
@@ -480,13 +504,27 @@ caption{text-align:left;padding:.625rem;font-weight:700}
 const CONFIG = {
   /* --- Model. Set MODEL to the exact string used in generate.py so the
          prototype's descriptions match the survey stimuli. --- */
-  MODEL: "gpt-5.6",
+  MODEL: "gpt-5.5",
   ENDPOINT: "https://api.openai.com/v1/chat/completions",
-  REASONING_EFFORT: "low",   // none | low | medium | high | xhigh | max
+  REASONING_EFFORT: "low",   // set to null to omit the parameter entirely
   VERBOSITY: null,           // null = omit. Leave omitted: it fights the word targets.
-  MAX_OUTPUT_TOKENS: 3000,   // sent as max_completion_tokens; reasoning tokens count against it
+  /* Sent as max_completion_tokens. Reasoning tokens count against it, and a
+     reasoning model that exhausts the budget returns an EMPTY description
+     rather than a truncated one — so this needs headroom far beyond the 60-odd
+     words of the description itself. */
+  MAX_OUTPUT_TOKENS: 8000,
   SEED: null,                // set a number to match generate.py's determinism, or leave null
   IMAGE_DETAIL: "high",
+
+  /* How a finished description is presented.
+     false — the description is withheld until the participant asks for it.
+             Nothing about it is on screen or in the accessibility tree, so the
+             interviewer can ask what they hoped to learn from the photo without
+             a swipe spoiling the answer.
+     true  — revealed and spoken the moment it lands, the way Seeing AI and
+             Be My AI behave. More naturalistic, but there is then no window in
+             which to ask the intent question. */
+  AUTO_SPEAK: false,
   REQUEST_TIMEOUT_MS: 90000,   // a hung request otherwise blocks the session forever
   RETRY_TRANSIENT: 2,          // extra attempts on 429 / 5xx / network drop
 
@@ -497,9 +535,12 @@ const CONFIG = {
   PROXY_URL: "",             // optional separate proxy; ignored when the above is true
 
   /* --- Study database: the Apps Script /exec URL --- */
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyZf0K9t16nuZ_5ta2hcPdls_LfkeTfetSKS5rOgwXTRyQSlnF_Sj47Vepl3yXN31Jt/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzCw2ZgRoZOAvADgiXJBkoUJ4pAYMVHf01xax0oauJm3f8DklxvggDXJv1vMx90YkqM/exec",
   SHARED_SECRET: "",         // must match SHARED_SECRET in the Apps Script, or leave both empty
-  SHARED: true,              // also mirror to artifact storage when it exists
+  /* Only meaningful inside an artifact host. Left FALSE deliberately: true
+     writes to storage shared with every user of the artifact, and these are
+     photos taken inside participants' homes. */
+  SHARED: false,
   MAX_IMAGE_DIM: 1280,
   JPEG_QUALITY: 0.72,
   SCHEMA: 1
@@ -527,30 +568,6 @@ const UPLOAD_RESEARCHER_IMAGES = false;
 /* Held in memory only. Never written to the database, never logged.
    Unused when the collector proxy is on. */
 let API_KEY = "";
-
-/* Per-participant survey answers, so the session can show people what they
-   said earlier. Optional: drop a survey.json next to this page, shaped
-     { "P07": { "confidence":"assertive", "specificity":"maximal",
-                "formality":"conversational", "subjectivity":"objective" } }
-   A missing file, a missing participant, or a partial entry simply turns the
-   reminder off for that session. */
-const SURVEY_ANSWERS_URL = "survey.json";
-
-async function loadSurveyAnswers(pid){
-  try {
-    const res = await fetch(SURVEY_ANSWERS_URL, { cache: "no-store" });
-    if (!res.ok) return null;
-    const all = await res.json();
-    const mine = all[pid] || all[pid.toUpperCase()];
-    if (!mine) return null;
-    const clean = {};
-    DIMENSIONS.forEach(d => {
-      const v = mine[d.key];
-      if (v && d.levels.some(l => l.key === v)) clean[d.key] = v;
-    });
-    return Object.keys(clean).length ? clean : null;
-  } catch(e){ return null; }
-}
 
 function usingCollectorProxy(){
   return !!(CONFIG.USE_COLLECTOR_PROXY && CONFIG.APPS_SCRIPT_URL);
@@ -879,6 +896,11 @@ const state = {
   pendingBaseStyle: {},   // starts empty: nothing preselected
   currentStyle: Object.assign({}, DEFAULT_STYLE),
   lastGeneratedStyle: null,
+  styleMode: "dimensions",
+  freeformText: "",
+  renderedDescriptionId: null,   // which version the sheet is currently showing
+  readCounts: {},                // descriptionId -> times the participant played it
+  revealed: {},                  // descriptionId -> has the participant asked for it yet
   generating: false,
   warnedSync: false,
   pidFromLink: false
@@ -942,7 +964,8 @@ function updateSyncPill(){
     retry.hidden = false;
     if (!state.warnedSync){
       state.warnedSync = true;
-      showError("Records are not reaching the study database. Nothing is lost — they will keep retrying. Tell your interviewer if this stays on screen.");
+      $("syncNote").textContent =
+        "Records are not reaching the study database. Nothing is lost — they will keep retrying. Tell your interviewer if this stays on screen.";
     }
     return;
   }
@@ -954,18 +977,30 @@ function updateSyncPill(){
   pill.textContent = Sync.unconfirmed ? "Saved (" + Sync.unconfirmed + " unconfirmed)" : "Saved";
   pill.classList.add("ok");
   retry.hidden = true;
+  if (state.warnedSync) $("syncNote").textContent = "";
   state.warnedSync = false;
 }
 
 /* =================================================================
    SCREENS
    ================================================================= */
-const SCREENS = ["setup","style","survey","images","capture","freeform","result","done"];
+const SCREENS = ["setup","style","images","capture","freeform","result","done"];
 function showScreen(name, focusId){
   SCREENS.forEach(s => { $("screen-" + s).hidden = (s !== name); });
   const target = $(focusId);
   if (target) setTimeout(() => target.focus(), 40);
 }
+
+/* The study-image screen only exists when there are study images, so the step
+   count has to reflect the route this session will actually take. A wrong
+   progress indicator is worse than none for someone using it to orient. */
+function setStepLabels(){
+  const total = RESEARCHER_IMAGES.length ? 3 : 2;
+  $("stepStyle").textContent = "Step 1 of " + total;
+  $("stepImages").textContent = "Step 2 of " + total;
+  $("stepCapture").textContent = "Step " + total + " of " + total;
+}
+setStepLabels();
 
 /* =================================================================
    IMAGE HANDLING
@@ -1049,6 +1084,14 @@ async function handleFile(file, source, researcher){
   clearError();
   showScreen("result", "resultH");
   setBusy(true, "Preparing your photo…");
+
+  /* A new photo starts with an empty sheet: the read and prefer buttons only
+     come back once there is something to read or prefer. */
+  state.renderedDescriptionId = null;
+  $("readBtn").hidden = true;
+  $("preferBtn").hidden = true;
+  $("sheet").hidden = true;
+
   try {
     const img = await fileToCompressedJpeg(file);
     const imageId = researcher ? researcher.id + "-" + uid("r").slice(2) : uid("img");
@@ -1087,7 +1130,8 @@ async function handleFile(file, source, researcher){
     });
 
     /* Each new photo starts from the participant's own settings, not ours —
-       and not from a free-text style they wrote for the previous photo. */
+       and not from a free-text style they wrote for the previous photo. The
+       free-text itself is kept, so they can reuse it without retyping. */
     state.styleMode = "dimensions";
     state.currentStyle = Object.assign({}, state.baseStyle);
     state.lastGeneratedStyle = null;
@@ -1121,12 +1165,122 @@ function setBusy(on, msg){
      participant just activated destroys VoiceOver focus and dumps the cursor
      back to the top of the page. This keeps the button focusable and announced
      as dimmed; the handlers below refuse to run while busy. */
-  ["regenBtn","resetBtn","preferBtn","newPhotoBtn","toFreeformBtn"].forEach(id => {
+  ["regenBtn","resetBtn","preferBtn","newPhotoBtn","toFreeformBtn",
+   "regenFreeformBtn","editFreeformBtn"].forEach(id => {
     const el = $(id);
     if (el) el.setAttribute("aria-disabled", on ? "true" : "false");
   });
+  /* readBtn is deliberately NOT dimmed: replaying the version already on
+     screen while the next one is being written is a reasonable thing to do,
+     and it reads from the rendered record, not from whatever is in flight. */
   /* statusRow is itself a live region, so setting its text announces it.
      Announcing again through #live would double-speak. */
+}
+
+/* Chat Completions does not always hand back a plain string. Depending on the
+   model and the account, `content` can be a string, an array of typed parts, or
+   absent with a `refusal` alongside it. Reading only the string case turns any
+   of the others into a bare "came back empty" with nothing to debug. */
+function extractText(choice){
+  if (!choice || !choice.message) return "";
+  const c = choice.message.content;
+  if (typeof c === "string") return c.trim();
+  if (Array.isArray(c)){
+    return c.map(function(part){
+      if (typeof part === "string") return part;
+      return (part && (part.text || part.content)) || "";
+    }).join("").trim();
+  }
+  if (c && typeof c === "object" && c.text) return String(c.text).trim();
+  return "";
+}
+
+/* An empty completion has several distinct causes and they need different
+   fixes, so name the one that actually happened rather than saying "empty". */
+function describeEmpty(data, choice){
+  /* A collector acknowledgement where a completion should be means doPost
+     never reached handleProxy_ — the deployed web app predates the proxy, so
+     the model request was filed as a data record instead. This is the single
+     most likely cause of an empty reply during setup, and it is invisible
+     unless named: the request "succeeded" and a row was even written. */
+  if (data && data.ok === true && !data.choices){
+    return "The study database answered this model request instead of OpenAI, which means the " +
+           "deployed Apps Script is an older version that predates the proxy. In the Apps Script " +
+           "editor: Deploy > Manage deployments > edit the existing deployment > Version: New version. " +
+           "Then open the /exec URL in a browser and check it reports version " + 11 + ". " +
+           "(A row will have landed on the Events tab with event_type 'openai' — that can be deleted.)";
+  }
+
+  const usage = data.usage || {};
+  const details = usage.completion_tokens_details || {};
+  const reasoning = details.reasoning_tokens || 0;
+  const finish = choice ? (choice.finish_reason || "(none given)") : "(the reply contained no choices)";
+  const refusal = choice && choice.message && choice.message.refusal;
+
+  if (refusal) return "The model declined to describe this image: " + refusal;
+  if (finish === "content_filter") return "The image was blocked by the model's content filter.";
+  if (finish === "length" || (reasoning && usage.completion_tokens && reasoning >= usage.completion_tokens - 2)){
+    return "The model spent its whole " + CONFIG.MAX_OUTPUT_TOKENS + "-token budget on reasoning (" +
+           reasoning + " reasoning tokens) and never got to the description. " +
+           "Raise MAX_OUTPUT_TOKENS or lower REASONING_EFFORT.";
+  }
+  return "The description came back empty. finish_reason: " + finish +
+         "; completion tokens: " + (usage.completion_tokens != null ? usage.completion_tokens : "unknown") +
+         (reasoning ? " (" + reasoning + " of them reasoning)" : "") +
+         ". The full reply is in the browser console as __lastModelResponse.";
+}
+
+/* Long waits need to say so. A single "Writing the description…" that never
+   changes reads as a broken page to someone who cannot see the spinner. */
+function startStatusTicks(){
+  const ticks = [
+    [8000,  "Still writing the description…"],
+    [20000, "Still working. This one is taking a little longer than usual."],
+    [45000, "Still working. If nothing happens soon, tell your interviewer."]
+  ];
+  const timers = ticks.map(t => setTimeout(() => { $("statusText").textContent = t[1]; }, t[0]));
+  return () => timers.forEach(clearTimeout);
+}
+
+/* Some hosts (sandboxed previews, embedded webviews) proxy fetch across a
+   postMessage boundary, which structured-clones the init object. AbortSignal
+   is not cloneable, so passing one throws DataCloneError before the request is
+   ever made. Detect that once, then fall back to racing a timer: the request
+   itself keeps running, but the session stops waiting on it, which is all the
+   timeout was ever for. */
+let SUPPORTS_ABORT = typeof AbortController === "function";
+function isCloneError(err){
+  return !!err && (err.name === "DataCloneError" ||
+                   /could not be cloned/i.test(String(err.message || "")));
+}
+async function fetchWithTimeout(url, init, ms){
+  if (SUPPORTS_ABORT){
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), ms);
+    try {
+      return await fetch(url, Object.assign({}, init, { signal: ctl.signal }));
+    } catch(err){
+      if (!isCloneError(err)) throw err;
+      SUPPORTS_ABORT = false;   // stop trying; fall through to the race below
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  let timer = null;
+  try {
+    return await Promise.race([
+      fetch(url, init),
+      new Promise((_, rej) => {
+        timer = setTimeout(() => {
+          const e = new Error("The request took too long and was stopped.");
+          e.name = "AbortError";
+          rej(e);
+        }, ms);
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /* Transient failures — rate limits, gateway blips, a phone switching from wifi
@@ -1141,13 +1295,10 @@ async function callModel(url, headers, body){
       $("statusText").textContent = "Connection hiccup. Trying again…";
       await new Promise(r => setTimeout(r, 1500 * attempt));
     }
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), CONFIG.REQUEST_TIMEOUT_MS);
     try {
-      const res = await fetch(url, {
-        method: "POST", headers, body: JSON.stringify(body), signal: ctl.signal
-      });
-      clearTimeout(timer);
+      const res = await fetchWithTimeout(url, {
+        method: "POST", headers, body: JSON.stringify(body)
+      }, CONFIG.REQUEST_TIMEOUT_MS);
 
       if (res.ok){
         const data = await res.json();
@@ -1169,7 +1320,6 @@ async function callModel(url, headers, body){
       if (res.status === 429 || res.status >= 500){ lastErr = err; continue; }
       throw err;
     } catch(err){
-      clearTimeout(timer);
       if (err.name === "AbortError"){
         lastErr = new Error("The request took too long and was stopped.");
         continue;
@@ -1190,12 +1340,17 @@ async function generate(isDefault){
   if (!img) return;
   const stillCurrent = () => state.currentImage === img;
 
-  const style = Object.assign({}, state.currentStyle);
+  const freeform = state.styleMode === "freeform";
+  /* The dimension radios always hold *some* value, but in free-text mode they
+     did not produce this description. Keep them out of the record entirely so
+     the four style columns in the sheet are never populated with settings that
+     were not used — style_mode alone is too easy to forget when analysing. */
+  const dimStyle = Object.assign({}, state.currentStyle);
+  const style = freeform ? {} : dimStyle;
   const descriptionId = uid("desc");
   const genIndex = state.descriptions.filter(d => d.imageId === img.imageId).length + 1;
-  const freeform = state.styleMode === "freeform";
   const userMessage = freeform ? buildFreeformMessage(state.freeformText)
-                               : buildUserMessage(style);
+                               : buildUserMessage(dimStyle);
   const systemPrompt = freeform ? SYSTEM_PROMPT_FREEFORM : SYSTEM_PROMPT;
   const t0 = performance.now();
 
@@ -1206,7 +1361,6 @@ async function generate(isDefault){
     const body = {
       model: CONFIG.MODEL,
       max_completion_tokens: CONFIG.MAX_OUTPUT_TOKENS,
-      reasoning_effort: CONFIG.REASONING_EFFORT,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: [
@@ -1217,6 +1371,9 @@ async function generate(isDefault){
         ]}
       ]
     };
+    /* Omitted when null, like verbosity: a model that does not take this
+       parameter rejects the whole request rather than ignoring it. */
+    if (CONFIG.REASONING_EFFORT) body.reasoning_effort = CONFIG.REASONING_EFFORT;
     if (CONFIG.VERBOSITY) body.verbosity = CONFIG.VERBOSITY;
     if (CONFIG.SEED !== null && CONFIG.SEED !== undefined) body.seed = CONFIG.SEED;
 
@@ -1238,18 +1395,20 @@ async function generate(isDefault){
       payload = body;
     }
 
-    const data = await callModel(url, headers, payload);
+    const stopTicks = startStatusTicks();
+    let data;
+    try { data = await callModel(url, headers, payload); }
+    finally { stopTicks(); }
+
+    /* Kept for inspection from the browser console during setup:
+       __lastModelResponse shows exactly what came back. */
+    window.__lastModelResponse = data;
 
     const choice = (data.choices && data.choices[0]) || null;
-    let text = (choice && choice.message && choice.message.content ? choice.message.content : "").trim();
+    let text = extractText(choice);
     text = text.replace(/^```[a-z]*\s*/i, "").replace(/```$/,"").trim();
 
-    if (!text){
-      if (choice && choice.finish_reason === "length"){
-        throw new Error("The model ran out of its token budget before finishing. Lower the reasoning effort or raise the output token limit.");
-      }
-      throw new Error("The description came back empty.");
-    }
+    if (!text) throw new Error(describeEmpty(data, choice));
 
     const record = {
       descriptionId,
@@ -1259,7 +1418,7 @@ async function generate(isDefault){
       generationIndex: genIndex,
       isDefault: !!isDefault,
       style,
-      styleSentence: freeform ? "free text" : styleSentence(style),
+      styleSentence: freeform ? "written from your own words" : styleSentence(dimStyle),
       text,
       model: CONFIG.MODEL,
       responseModel: data.model || CONFIG.MODEL,
@@ -1274,15 +1433,17 @@ async function generate(isDefault){
       userMessage,
       styleMode: freeform ? "freeform" : "dimensions",
       freeformText: freeform ? state.freeformText : "",
-      targetWords: freeform ? "" : LENGTH_TARGETS[style.specificity],
-      isBaselineStyle: !freeform && isBaselineStyle(style),
-      matchesParticipantBase: !freeform && sameStyle(style, state.baseStyle),
+      targetWords: freeform ? "" : LENGTH_TARGETS[dimStyle.specificity],
+      isBaselineStyle: !freeform && isBaselineStyle(dimStyle),
+      matchesParticipantBase: !freeform && sameStyle(dimStyle, state.baseStyle),
       latencyMs: Math.round(performance.now() - t0),
       preferred: false,
       createdAt: new Date().toISOString()
     };
     state.descriptions.push(record);
-    state.lastGeneratedStyle = Object.assign({}, style);
+    /* Only dimension runs set a comparison point for the "you've changed the
+       settings" note. After a free-text run there is nothing to compare to. */
+    state.lastGeneratedStyle = freeform ? null : Object.assign({}, dimStyle);
 
     /* Record and upload regardless; only paint the screen if the participant
        is still looking at this image. */
@@ -1292,7 +1453,7 @@ async function generate(isDefault){
     }
     logEvent("description_generated", {
       descriptionId, imageId: record.imageId, generationIndex: genIndex,
-      isDefault: !!isDefault, style, latencyMs: record.latencyMs
+      isDefault: !!isDefault, styleMode: record.styleMode, style, latencyMs: record.latencyMs
     });
     Sync.push({
       type: "description",
@@ -1313,13 +1474,15 @@ async function generate(isDefault){
     await saveNow();
     if (!stillCurrent()) return;
     setBusy(false);
-    updatePendingNote();
-    /* Speak the description itself through the live region rather than moving
-       focus and hoping the VoiceOver cursor follows — programmatic focus on a
-       non-interactive element is unreliable on iOS. No focus move, so nothing
-       interrupts the reading, and the participant keeps their place in the
-       controls. The text stays navigable under the Description heading. */
-    announce("Version " + genIndex + ". " + text);
+    updateModeUI();
+
+    /* Nothing is read automatically. Focus lands on the play button, whose
+       label already carries the news ("Read version 2"), so VoiceOver announces
+       readiness by announcing the control — no live-region race, no long
+       one-shot read that cannot be recovered, and a natural pause for the
+       interviewer to ask what the participant hoped to learn from this photo. */
+    if (CONFIG.AUTO_SPEAK) readAloud(record);
+    else $("readBtn").focus();
   } catch(err){
     if (!stillCurrent()){
       logEvent("description_error", { imageId: img.imageId, style, message: String(err && err.message) });
@@ -1336,60 +1499,227 @@ async function generate(isDefault){
 }
 
 /* =================================================================
-   RENDERING
+   READING AND PREFERRING
    ================================================================= */
 function currentVersions(){
   if (!state.currentImage) return [];
   return state.descriptions.filter(d => d.imageId === state.currentImage.imageId);
 }
-function renderDescription(rec){
-  $("versionLabel").textContent = "Version " + rec.generationIndex +
+function versionById(id){
+  return state.descriptions.find(d => d.descriptionId === id) || null;
+}
+function renderedRecord(){ return versionById(state.renderedDescriptionId); }
+
+function versionTitle(rec){
+  return "Version " + rec.generationIndex +
     (rec.styleMode === "freeform" ? " — your own words"
-      : (rec.isDefault ? " — your starting style" : ""));
+      : (rec.isDefault ? " — your starting style" : "")) +
+    (rec.preferred ? " (the description you prefer)" : "");
+}
+
+/* Re-rendering a list destroys the button the participant just activated and
+   drops the VoiceOver cursor to the top of the page. Re-render, then put focus
+   back on the same control by id. */
+function withFocusRestored(fn){
+  const id = document.activeElement && document.activeElement.id;
+  fn();
+  if (id){
+    const el = document.getElementById(id);
+    if (el) el.focus();
+  }
+}
+
+/* Reading is an explicit act, so every play is a data point: how many times a
+   hedging version gets replayed before a decision is itself a finding.
+   `btn` is the control that was pressed, relabelled in place rather than by
+   rebuilding the list around it. */
+function readAloud(rec, btn){
+  if (!rec) return;
+  const first = !state.revealed[rec.descriptionId];
+  state.revealed[rec.descriptionId] = true;
+  const n = (state.readCounts[rec.descriptionId] = (state.readCounts[rec.descriptionId] || 0) + 1);
+  if (rec.descriptionId === state.renderedDescriptionId){
+    /* Unhide before announcing: the text has to be in the accessibility tree
+       for the participant to navigate back to it after the read finishes. */
+    $("sheet").hidden = false;
+    updatePreferBtn();
+  }
+  announce("Version " + rec.generationIndex + ". " + rec.text);
+  if (rec.descriptionId === state.renderedDescriptionId) updateReadBtn();
+  else if (btn) btn.textContent = "Read version " + rec.generationIndex + " again";
+  logEvent("description_read", {
+    descriptionId: rec.descriptionId, imageId: rec.imageId,
+    generationIndex: rec.generationIndex, readIndex: n, firstListen: first
+  });
+  Sync.push({
+    type: "event", eventType: first ? "description_revealed" : "description_replayed",
+    imageId: rec.imageId, style: rec.style,
+    detail: "version " + rec.generationIndex + ", played " + n +
+            (n === 1 ? " time" : " times")
+  });
+  scheduleSave();
+}
+
+function setPreferred(rec){
+  if (!rec) return;
+  const total = currentVersions().length;
+  state.descriptions.forEach(d => { if (d.imageId === rec.imageId) d.preferred = false; });
+  rec.preferred = true;
+
+  logEvent("preference_confirmed", {
+    descriptionId: rec.descriptionId, imageId: rec.imageId,
+    generationIndex: rec.generationIndex, styleMode: rec.styleMode, style: rec.style
+  });
+  /* The Apps Script clears `preferred` on every other row for this image_id,
+     so changing their mind later leaves exactly one TRUE per photo. */
+  Sync.push({
+    type: "preference", descriptionId: rec.descriptionId,
+    imageId: rec.imageId, style: rec.style,
+    detail: "version " + rec.generationIndex + " of " + total +
+            " (" + (rec.styleMode || "dimensions") + ")"
+  });
+  saveNow();
+
+  renderVersionLine();
+  updatePreferBtn();
+  withFocusRestored(renderHistory);
+  announce("Saved version " + rec.generationIndex + " as your preferred description. " +
+           (rec.styleMode === "freeform"
+              ? "Written from your own words."
+              : "Written with " + rec.styleSentence));
+}
+
+function updateReadBtn(){
+  const rec = renderedRecord();
+  const btn = $("readBtn");
+  if (!rec){ btn.hidden = true; return; }
+  btn.hidden = false;
+  if (state.revealed[rec.descriptionId]){
+    btn.textContent = "Read version " + rec.generationIndex + " again";
+  } else {
+    btn.textContent = rec.generationIndex === 1
+      ? "Read the description" : "Read version " + rec.generationIndex;
+  }
+}
+
+function updatePreferBtn(){
+  const rec = renderedRecord();
+  const btn = $("preferBtn");
+  if (!rec || !state.revealed[rec.descriptionId]){ btn.hidden = true; return; }
+  btn.hidden = false;
+  btn.textContent = rec.preferred
+    ? "Version " + rec.generationIndex + " is the description you prefer"
+    : "Save version " + rec.generationIndex + " as the description I prefer";
+}
+
+/* =================================================================
+   RENDERING
+   ================================================================= */
+function renderVersionLine(){
+  const rec = renderedRecord();
+  if (!rec) return;
+  $("versionLabel").textContent = versionTitle(rec);
+}
+function renderDescription(rec){
+  state.renderedDescriptionId = rec.descriptionId;
+  /* hidden removes it from the accessibility tree entirely, so swiping past
+     the button cannot reach the text. Visually hiding it would not. */
+  $("sheet").hidden = !state.revealed[rec.descriptionId];
+  $("versionLabel").textContent = versionTitle(rec);
   $("descText").textContent = rec.text;
   $("styleSentence").textContent = rec.styleMode === "freeform"
     ? "Written from your own description of the style you want."
     : "Written with " + rec.styleSentence;
+  updateReadBtn();
+  updatePreferBtn();
 }
+
 function renderHistory(){
-  const list = currentVersions();
-  const earlier = list.slice(0, -1).reverse();
+  const earlier = currentVersions()
+    .filter(r => r.descriptionId !== state.renderedDescriptionId)
+    .reverse();
   $("historySummary").textContent = "Earlier versions of this description (" + earlier.length + ")";
   const host = $("historyList");
   host.textContent = "";
   if (!earlier.length){
     const p = document.createElement("p");
     p.className = "muted";
-    p.textContent = "Once you change the style, earlier versions will be listed here so you can compare them.";
+    p.textContent = "Once you change the style, earlier versions will be listed here so you can play them again and pick the one you prefer.";
     host.appendChild(p);
     return;
   }
   earlier.forEach(rec => {
     const div = document.createElement("div");
+    /* Anything in the history has already been on screen, so it is not gated. */
     div.className = "version";
+
     const h = document.createElement("h3");
-    h.textContent = "Version " + rec.generationIndex +
-      (rec.styleMode === "freeform" ? " — your own words"
-        : (rec.isDefault ? " — your starting style" : ""));
+    h.textContent = versionTitle(rec);
+
     const s = document.createElement("p");
     s.className = "muted"; s.style.margin = "0 0 .375rem";
-    s.textContent = rec.styleSentence;
+    s.textContent = rec.styleMode === "freeform"
+      ? "Written from your own words." : rec.styleSentence;
+
     const t = document.createElement("p");
     t.style.margin = "0"; t.textContent = rec.text;
-    div.append(h, s, t);
+
+    /* Stable ids so withFocusRestored can find the same control again after a
+       re-render. */
+    const played = state.readCounts[rec.descriptionId] || 0;
+    const readB = document.createElement("button");
+    readB.type = "button";
+    readB.id = "read-" + rec.descriptionId;
+    readB.className = "btn btn-secondary";
+    readB.textContent = "Read version " + rec.generationIndex + (played ? " again" : "");
+    readB.addEventListener("click", () => readAloud(rec, readB));
+
+    /* Any version can be the preferred one. Participants routinely settle on
+       something they heard three rewrites ago, and forcing them to regenerate
+       it would both waste session time and corrupt the version sequence. */
+    const prefB = document.createElement("button");
+    prefB.type = "button";
+    prefB.id = "pref-" + rec.descriptionId;
+    prefB.className = "btn btn-secondary";
+    prefB.textContent = rec.preferred
+      ? "Version " + rec.generationIndex + " is the description you prefer"
+      : "Save version " + rec.generationIndex + " as the description I prefer";
+    prefB.addEventListener("click", () => { if (!busyBlocked()) setPreferred(rec); });
+
+    div.append(h, s, t, readB, prefB);
     host.appendChild(div);
   });
 }
-function updatePendingNote(){
-  const note = $("pendingNote"), txt = $("pendingText"), btn = $("regenBtn");
+
+/* One live region, one message at a time. Rewriting identical text would make
+   some screen readers speak it twice, so only change it when it changes. */
+function setNote(text){
+  const note = $("pendingNote"), txt = $("pendingText");
+  if (!text){ note.hidden = true; if (txt.textContent) txt.textContent = ""; return; }
+  if (txt.textContent !== text) txt.textContent = text;
+  note.hidden = false;
+}
+
+/* Keeps the result screen honest about which of the two style routes produced
+   what is on screen, and makes every button say what it will actually do. */
+function updateModeUI(){
+  const freeform = state.styleMode === "freeform";
+  $("freeformActive").hidden = !freeform;
+
+  if (freeform){
+    $("freeformEcho").textContent = state.freeformText || "";
+    setNote("The description above came from your own words. The four settings below were not used to write it.");
+    $("regenBtn").textContent = "Write a description with these four settings instead";
+    return;
+  }
+
   const changed = state.lastGeneratedStyle && !sameStyle(state.currentStyle, state.lastGeneratedStyle);
   if (changed){
-    note.hidden = false;
-    txt.textContent = "You've changed the settings. The description above hasn't been rewritten yet.";
-    btn.textContent = "Write a new description with these settings";
+    setNote("You've changed the settings. The description above hasn't been rewritten yet.");
+    $("regenBtn").textContent = "Write a new description with these settings";
   } else {
-    note.hidden = true;
-    btn.textContent = "Write the description again with these settings";
+    setNote("");
+    $("regenBtn").textContent = "Write the description again with these settings";
   }
 }
 
@@ -1403,8 +1733,20 @@ function buildControls(hostId, prefix, onChange, initial){
   DIMENSION_ORDER.map(k => DIMENSIONS.find(d => d.key === k)).forEach(dim => {
     if (!LEVEL_ORDER[dim.key]) LEVEL_ORDER[dim.key] = shuffled(dim.levels.map(l => l.key));
     const order = LEVEL_ORDER[dim.key].map(k => dim.levels.find(l => l.key === k));
+    /* A visible heading above each group, with the legend kept for the radio
+       grouping but hidden. Without headings the four dimensions are invisible
+       to the rotor, so reaching the regenerate button from the description
+       means swiping past every option and every definition — about thirty
+       stops. With them it is four. */
+    const head = document.createElement("h3");
+    head.className = "dimhead";
+    head.id = prefix + "-head-" + dim.key;
+    head.textContent = dim.label;
+    host.appendChild(head);
+
     const fs = document.createElement("fieldset");
     const lg = document.createElement("legend");
+    lg.className = "vh";
     lg.textContent = dim.label;
     const hint = document.createElement("p");
     /* Prefixed: buildControls runs once for the setup screen and once for the
@@ -1490,7 +1832,7 @@ function onStyleChange(dim, lvl){
     styleAfter: Object.assign({}, state.currentStyle),
     detail: dim.label + ": " + from + " -> " + lvl.key
   });
-  updatePendingNote();
+  updateModeUI();
   /* The radio announces its own selection, so repeating it here would
      double-speak. pendingNote is a live region and carries the "not rewritten
      yet" state on its own. */
@@ -1512,7 +1854,7 @@ function markChecked(el){
 
 function syncControlsFromState(){
   DIMENSIONS.forEach(dim => markChecked($("opt-" + dim.key + "-" + state.currentStyle[dim.key])));
-  updatePendingNote();
+  updateModeUI();
 }
 
 /* =================================================================
@@ -1573,8 +1915,6 @@ function startSession(pid, source){
   showScreen("style", "styleH");
   announce("Session started for participant " + pid + ".");
   verifyCollector();
-  /* Fetched now, shown only after they have made their own choices. */
-  loadSurveyAnswers(pid).then(ans => { state.surveyStyle = ans; });
 }
 
 $("startBtn").addEventListener("click", () => {
@@ -1611,41 +1951,6 @@ function verifyCollector(){
   }, 8000);
 }
 
-function buildSurveyCompare(){
-  const host = $("surveyCompare");
-  host.textContent = "";
-  const survey = state.surveyStyle, mine = state.baseStyle;
-  let agree = 0;
-
-  DIMENSIONS.forEach(dim => {
-    if (!survey[dim.key]) return;
-    const sLvl = dim.levels.find(l => l.key === survey[dim.key]);
-    const mLvl = dim.levels.find(l => l.key === mine[dim.key]);
-    const same = survey[dim.key] === mine[dim.key];
-    if (same) agree++;
-
-    const block = document.createElement("div");
-    block.className = "card";
-    const h = document.createElement("h2");
-    h.style.fontSize = "1.0625rem";
-    h.textContent = dim.label;
-    const p1 = document.createElement("p");
-    p1.className = "tight";
-    p1.textContent = same
-      ? "Both times you chose: " + mLvl.label + "."
-      : "In the survey you chose: " + sLvl.label + ".";
-    block.append(h, p1);
-    if (!same){
-      const p2 = document.createElement("p");
-      p2.style.margin = "0";
-      p2.textContent = "Just now you chose: " + mLvl.label + ".";
-      block.appendChild(p2);
-    }
-    host.appendChild(block);
-  });
-  return agree;
-}
-
 function commitBaseStyle(chosen){
   const first = !state.baseStyleSet;
   state.baseStyle = Object.assign({}, chosen);
@@ -1662,25 +1967,6 @@ function commitBaseStyle(chosen){
     detail: isBaselineStyle(chosen) ? "identical to the part-one baseline cell" : ""
   });
   saveNow();
-
-  /* The comparison is shown once, and only after their own choices are in, so
-     it cannot steer the choice it is measuring. */
-  if (state.surveyStyle && !state.surveyShown){
-    state.surveyShown = true;
-    const agree = buildSurveyCompare();
-    const total = DIMENSIONS.filter(d => state.surveyStyle[d.key]).length;
-    Sync.push({
-      type: "event", eventType: "survey_comparison",
-      styleAfter: chosen,
-      detail: agree + " of " + total + " match the survey; survey was " +
-              DIMENSIONS.filter(d => state.surveyStyle[d.key])
-                .map(d => d.key + "=" + state.surveyStyle[d.key]).join(" ")
-    });
-    saveNow();
-    showScreen("survey", "surveyH");
-    announce(agree + " of " + total + " settings match what you said in the survey.");
-    return;
-  }
   goToTask();
 }
 
@@ -1741,29 +2027,12 @@ async function useResearcherImage(img){
   }
 }
 
-$("keepNewBtn").addEventListener("click", () => {
-  Sync.push({ type: "event", eventType: "survey_comparison_resolved",
-    styleAfter: state.baseStyle, detail: "kept their in-session choices" });
-  goToTask();
-});
+/* ---------- reading and preferring the current version ---------- */
+$("readBtn").addEventListener("click", () => readAloud(renderedRecord()));
 
-$("useSurveyBtn").addEventListener("click", () => {
-  const merged = Object.assign({}, state.baseStyle, state.surveyStyle);
-  state.baseStyle = merged;
-  state.pendingBaseStyle = Object.assign({}, merged);
-  if (!state.currentImage) state.currentStyle = Object.assign({}, merged);
-  DIMENSIONS.forEach(dim => {
-    markChecked($("set-" + dim.key + "-" + merged[dim.key]));
-  });
-  Sync.push({ type: "event", eventType: "survey_comparison_resolved",
-    styleAfter: merged, detail: "switched to their survey answers" });
-  saveNow();
-  goToTask();
-});
-
-$("backToStyleBtn").addEventListener("click", () => {
-  state.pendingBaseStyle = Object.assign({}, state.baseStyle);
-  showScreen("style", "styleH");
+$("preferBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
+  setPreferred(renderedRecord());
 });
 
 /* ---------- free text ---------- */
@@ -1773,9 +2042,17 @@ $("toFreeformBtn").addEventListener("click", () => {
   showScreen("freeform", "freeformH");
 });
 
+$("editFreeformBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
+  $("freeformError").textContent = "";
+  $("freeformText").value = state.freeformText || "";
+  showScreen("freeform", "freeformH");
+});
+
 $("freeformBackBtn").addEventListener("click", () => showScreen("result", "resultH"));
 
 $("freeformGoBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
   const text = $("freeformText").value.trim();
   if (text.length < 10){
     $("freeformError").textContent =
@@ -1784,12 +2061,22 @@ $("freeformGoBtn").addEventListener("click", () => {
     return;
   }
   $("freeformError").textContent = "";
+  const edited = state.freeformText && state.freeformText !== text;
   state.styleMode = "freeform";
   state.freeformText = text;
-  Sync.push({ type: "event", eventType: "freeform_submitted",
+  Sync.push({ type: "event",
+    eventType: edited ? "freeform_edited" : "freeform_submitted",
     imageId: state.currentImage ? state.currentImage.imageId : null,
     detail: text });
   showScreen("result", "resultH");
+  generate(false);
+});
+
+/* Writing it again in their own words stays in free-text mode — it does not
+   silently fall back to the four settings. */
+$("regenFreeformBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
+  state.styleMode = "freeform";
   generate(false);
 });
 
@@ -1817,23 +2104,6 @@ $("resetBtn").addEventListener("click", () => {
   announce("Style set back to your starting settings: " + styleSentence(state.baseStyle));
 });
 
-$("preferBtn").addEventListener("click", () => {
-  if (busyBlocked()) return;
-  const versions = currentVersions();
-  const latest = versions[versions.length - 1];
-  if (!latest) return;
-  state.descriptions.forEach(d => { if (d.imageId === latest.imageId) d.preferred = false; });
-  latest.preferred = true;
-  logEvent("preference_confirmed", {
-    descriptionId: latest.descriptionId, imageId: latest.imageId, style: latest.style
-  });
-  Sync.push({ type: "preference", descriptionId: latest.descriptionId,
-    imageId: latest.imageId, style: latest.style,
-    detail: "version " + latest.generationIndex + " of " + versions.length });
-  saveNow();
-  announce("Saved version " + latest.generationIndex + " as your preferred style: " + latest.styleSentence);
-});
-
 $("newPhotoBtn").addEventListener("click", () => {
   if (busyBlocked()) return;
   const fromStudy = state.currentImage && state.currentImage.researcherImageId;
@@ -1841,7 +2111,10 @@ $("newPhotoBtn").addEventListener("click", () => {
   else showScreen("capture", "captureH");
 });
 $("backToDesc").addEventListener("click", () => showScreen("result", "resultH"));
-$("retrySync").addEventListener("click", () => { clearError(); state.warnedSync = false; Sync.failed = false; Sync.flush(); saveNow(); });
+$("retrySync").addEventListener("click", () => {
+  clearError(); $("syncNote").textContent = "";
+  state.warnedSync = false; Sync.failed = false; Sync.flush(); saveNow();
+});
 
 
 
@@ -1907,7 +2180,7 @@ $("endYesBtn").addEventListener("click", async () => {
 });
 
 /* Text size */
-const SIZES = { sizeA:1, sizeB:1.18, sizeC:1.38 };
+const SIZES = { sizeA:1, sizeB:1.25, sizeC:1.5 };
 Object.keys(SIZES).forEach(id => {
   $(id).addEventListener("click", () => {
     document.documentElement.style.setProperty("--step", SIZES[id]);
