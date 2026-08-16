@@ -174,6 +174,19 @@ p{margin:0 0 var(--gap-para);max-width:70ch}
   background:transparent;color:var(--brand);border-color:transparent;
   text-decoration:underline;text-underline-offset:3px;width:auto;font-weight:650;
 }
+/* A confirmed preference is a STATE, not another action waiting to be taken:
+   filled, ticked, and aria-pressed so it is announced as well as seen. The
+   tick is drawn from borders rather than a "✓" glyph, which screen readers
+   read aloud as "check mark" on every pass. */
+.btn-confirm[aria-pressed="true"]{
+  background:var(--ok);color:var(--paper);border-color:var(--ok);
+}
+.btn-confirm[aria-pressed="true"]::before{
+  content:"";flex:0 0 auto;
+  width:.45rem;height:.85rem;margin-top:-.2rem;
+  border-right:3px solid currentColor;border-bottom:3px solid currentColor;
+  transform:rotate(45deg);
+}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 .btn[aria-disabled="true"]{opacity:.5}
 
@@ -617,7 +630,17 @@ h2.section{margin-top:var(--gap-section)}
            live region reads the text a moment later. -->
       <button type="button" class="btn btn-secondary" id="readBtn" hidden>Read the description aloud</button>
 
-      <button type="button" class="btn btn-secondary" id="preferBtn" hidden>Save this as the description I prefer</button>
+      <button type="button" class="btn btn-secondary btn-confirm" id="preferBtn"
+              aria-pressed="false" hidden>Save this as the description I prefer</button>
+
+      <!-- Directly under the current version, not down past the photo and the
+           style controls: comparing two versions was a scroll to the bottom
+           and back for every glance. -->
+      <h2 class="section">Earlier versions</h2>
+      <details id="historyDetails">
+        <summary><span id="historySummary">Earlier versions of this description (0)</span></summary>
+        <div id="historyList"></div>
+      </details>
       </div><!-- /describedBlock -->
 
       <!-- The photo sits BELOW the description on purpose. A full-width
@@ -672,11 +695,6 @@ h2.section{margin-top:var(--gap-section)}
         <button type="button" class="btn btn-secondary" id="toFreeformBtn">Describe a style in my own words</button>
       </form>
 
-      <h2 class="section">Earlier versions</h2>
-      <details id="historyDetails">
-        <summary><span id="historySummary">Earlier versions of this description (0)</span></summary>
-        <div id="historyList"></div>
-      </details>
       </div><!-- /controlsBlock -->
 
       <button type="button" class="btn btn-secondary block-top" id="newPhotoBtn">Choose another image or photo</button>
@@ -716,18 +734,46 @@ h2.section{margin-top:var(--gap-section)}
    CONFIG
    ================================================================= */
 const CONFIG = {
-  /* --- Model. Set MODEL to the exact string used in generate.py so the
-         prototype's descriptions match the survey stimuli. --- */
+  /* --- Model. The ALIAS is deliberate, not an oversight. config.py sets
+         MODEL = "gpt-5.5" — the survey stimuli were generated against the
+         floating alias too, and system_fingerprint came back null, so there is
+         no dated snapshot recorded anywhere in part one to pin back to.
+         Pinning part two to a snapshot would make it MORE likely to differ
+         from part one, not less. Matching config.py exactly is the closer
+         match. `response_model` is stored on every description row, and a
+         `model_drift` event fires if OpenAI ever serves something other than
+         what was asked for — which is how you would find out the alias moved
+         between July's generation and these sessions. --- */
   MODEL: "gpt-5.5",
+  /* True only if you later pin a dated snapshot and want to be told when it
+     silently reverts to an alias. */
+  MODEL_MUST_BE_PINNED: false,
   ENDPOINT: "https://api.openai.com/v1/chat/completions",
-  REASONING_EFFORT: "low",   // set to null to omit the parameter entirely
+  /* NULL to match the survey pipeline. config.py sets MODEL, SEED,
+     N_CANDIDATES, SEED_STRIDE and MAX_OUTPUT_TOKENS and never mentions
+     reasoning effort, so generate.py sent no `reasoning_effort` and the part-one
+     stimuli were written at the API default. Sending "low" here would have run
+     part two at a different reasoning budget from part one — a difference in
+     the generation configuration, not just in the prompt. */
+  REASONING_EFFORT: null,
   VERBOSITY: null,           // null = omit. Leave omitted: it fights the word targets.
-  /* Sent as max_completion_tokens. Reasoning tokens count against it, and a
-     reasoning model that exhausts the budget returns an EMPTY description
-     rather than a truncated one — so this needs headroom far beyond the 60-odd
-     words of the description itself. */
-  MAX_OUTPUT_TOKENS: 8000,
-  SEED: null,                // set a number to match generate.py's determinism, or leave null
+  /* Sent as max_completion_tokens. Two values, because parity only matters
+     where part one has a counterpart. Study images get config.MAX_OUTPUT_TOKENS
+     (2000) exactly as generate.py sent — proven sufficient for these six images
+     with this prompt. Participant photos are novel scenes with no part-one
+     equivalent, so they get headroom: a reasoning model that exhausts its
+     budget returns an EMPTY description, and that failure mid-interview costs
+     more than the parity would buy. */
+  MAX_OUTPUT_TOKENS: 2000,
+  MAX_OUTPUT_TOKENS_OWN_PHOTO: 8000,
+  /* generate.py pinned a seed per candidate (e.g. 425). Deliberately null
+     here: with a fixed seed, "write the description again with these settings"
+     would return the identical text, and re-rolling the same style is
+     something participants actually do. The trade is that two participants on
+     identical settings see differently-worded descriptions of the same study
+     image — acceptable for an interview, and every description is stored
+     verbatim either way. */
+  SEED: null,
   /* Ceiling for free-text descriptions. Matches the maximal specificity target
      below: a participant's own instructions should be able to ask for anything
      up to the longest style the survey used, but not past it, or free-text
@@ -736,8 +782,11 @@ const CONFIG = {
   FREEFORM_MAX_WORDS: 60,
   /* Must match SCRIPT_VERSION in the Apps Script. Only used to tell the
      participant which version a stale deployment should be reporting. */
-  COLLECTOR_VERSION: 12,
-  IMAGE_DETAIL: "high",
+  COLLECTOR_VERSION: 15,
+  /* NULL to match gpt.py, whose image_url carries only `url` — so the survey
+     stimuli were described at the API's default detail. Setting "high" here
+     would have tiled the image differently from part one. */
+  IMAGE_DETAIL: null,
 
   /* Speak each new description through the live region the moment it lands,
      the way Seeing AI and Be My AI do. The interviewer's window for intent
@@ -758,13 +807,22 @@ const CONFIG = {
 
   /* --- Study database: the Apps Script /exec URL --- */
   APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzCw2ZgRoZOAvADgiXJBkoUJ4pAYMVHf01xax0oauJm3f8DklxvggDXJv1vMx90YkqM/exec",
-  SHARED_SECRET: "",         // must match SHARED_SECRET in the Apps Script, or leave both empty
+  /* Must match SHARED_SECRET in the Apps Script exactly. It travels in this
+     public file, so it stops someone who finds the /exec URL in a log or a
+     referrer header — not someone reading the page source. The spending cap on
+     a project-scoped key is what actually bounds the damage. */
+  SHARED_SECRET: "descstyle-tKm4mdyMfBSMJ0tWp7ZhfGYOfP5Q",
   /* Only meaningful inside an artifact host. Left FALSE deliberately: true
      writes to storage shared with every user of the artifact, and these are
      photos taken inside participants' homes. */
   SHARED: false,
-  MAX_IMAGE_DIM: 1280,
-  JPEG_QUALITY: 0.72,
+  /* Applies to PARTICIPANT photos only — study images are sent byte-for-byte
+     (see preparePhoto). Storage is not the constraint; upload time on a phone
+     over cellular is, and the vision API downscales large images itself, so
+     pixels beyond its own ceiling cost seconds without reaching the model.
+     2048 at 0.92 is generous headroom over the old 1280 at 0.72. */
+  MAX_IMAGE_DIM: 2048,
+  JPEG_QUALITY: 0.92,
   SCHEMA: 1
 };
 
@@ -887,8 +945,42 @@ const DIMENSION_ORDER = [];
 const DEFAULT_STYLE = { confidence:"assertive", specificity:"moderate", formality:"professional", subjectivity:"objective" };
 
 /* ---------------------------------------------------------------------
-   Word targets sent in the user message.
+   Prompt provenance. Bump PROMPT_VERSION by hand whenever either system
+   prompt below is edited. The hash is computed from the prompt text itself,
+   so it catches an edit that someone forgot to bump — the version says what
+   you MEANT to change, the hash says what actually changed.
+
+   The full prompt text is written once per session (Sessions tab), not once
+   per description: it is four thousand characters and would bloat every row.
+   Each description carries the version and the hash, which is enough to tie
+   it back to the exact text stored with its session.
    --------------------------------------------------------------------- */
+/* Covers the two system prompts AND the user-message template in
+   buildUserMessage — all three have to match the survey pipeline. */
+const PROMPT_VERSION = "2026-08-15";
+
+function promptHash(text){
+  /* FNV-1a, 32-bit. Not cryptographic — this only has to notice that the
+     prompt changed, and it has to be identical across runs. */
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++){
+    h ^= text.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return ("0000000" + h.toString(16)).slice(-8);
+}
+
+/* ---------------------------------------------------------------------
+   Length wording, copied from cells.py `_LENGTH` / `length_instruction`.
+   Note that moderate carries an explicit range that the other two do not —
+   the prototype previously sent a flat "approximately 40 words." and lost it.
+   --------------------------------------------------------------------- */
+const LENGTH_INSTRUCTION = {
+  minimal:  "approximately 20 words",
+  moderate: "approximately 40 words (between 30 and 50)",
+  maximal:  "approximately 60 words"
+};
+/* The bare number, for the target_words column. Not sent to the model. */
 const LENGTH_TARGETS = { minimal: 20, moderate: 40, maximal: 60 };
 
 /* ---------------------------------------------------------------------
@@ -975,15 +1067,31 @@ function buildFreeformMessage(text){
          CONFIG.FREEFORM_MAX_WORDS + " words.";
 }
 
-/* User message: the four dimension settings plus the target length. */
+/* User message. This is a transcription of cells.dimension_block() plus the
+   trailing line generate.py appends — it must stay byte-for-byte identical, or
+   part two is prompted differently from the survey stimuli it is compared with.
+   Four things the earlier version got wrong, all restored here:
+     - the "Apply exactly these four style settings" lead-in was missing
+       entirely, and it is the instruction that holds the three unmanipulated
+       dimensions in place
+     - the four lines had no "- " bullet prefix
+     - levels were title-cased ("Assertive"); cells.py sends the lowercase
+       setting values ("assertive")
+     - moderate lost its "(between 30 and 50)" range
+   Dimension order is fixed here for the same reason: cells.py emits confidence,
+   specificity, formality, subjectivity in that order regardless of the display
+   shuffle the participant sees. */
 function buildUserMessage(style){
-  const lines = DIMENSIONS.map(d => {
-    const lvl = d.levels.find(l => l.key === style[d.key]);
-    return d.key.charAt(0).toUpperCase() + d.key.slice(1) + ": " + lvl.promptLabel;
-  });
-  lines.push("Target length: approximately " + LENGTH_TARGETS[style.specificity] + " words.");
-  return lines.join("\n") +
-    "\n\nDescribe the attached image as a single description, following the style settings above.";
+  return (
+    "Apply exactly these four style settings. Hold all four as specified; " +
+    "do not change any dimension beyond what is stated here.\n" +
+    "- Confidence: " + style.confidence + "\n" +
+    "- Specificity: " + style.specificity + "\n" +
+    "- Formality: " + style.formality + "\n" +
+    "- Subjectivity: " + style.subjectivity + "\n" +
+    "- Target length: " + LENGTH_INSTRUCTION[style.specificity] +
+    "\n\nDescribe the attached image as a single description, following the style settings above."
+  );
 }
 
 function styleSentence(style){
@@ -1214,10 +1322,10 @@ const SCREENS = ["setup","style","images","capture","freeform","result","done"];
    VoiceOver and TalkBack builds — the element is not in the accessibility tree
    yet when focus() runs. Wait for the browser to paint, then confirm it landed
    and retry once if it did not. */
-function focusSoon(el){
+function focusSoon(el, opts){
   if (!el) return;
   const go = () => {
-    el.focus();
+    try { el.focus(opts); } catch(e){ el.focus(); }
     /* Retry ONLY if the focus attempt was dropped — never if something else has
        since taken focus legitimately. Two screens can queue a move in the same
        turn (the screen heading, then the button on it), and a blind retry would
@@ -1226,7 +1334,7 @@ function focusSoon(el){
       const a = document.activeElement;
       if (a === el) return;
       if (a && a !== document.body && a !== document.documentElement) return;
-      el.focus();
+      try { el.focus(opts); } catch(e){ el.focus(); }
     }, 150);
   };
   if (typeof requestAnimationFrame === "function"){
@@ -1234,6 +1342,20 @@ function focusSoon(el){
   } else {
     setTimeout(go, 40);
   }
+}
+
+/* The regenerate button sits below the description, and below the four style
+   groups — so finishing a rewrite left a low vision participant at the bottom
+   of the page with the new text off-screen above them. Screen reader users
+   are unaffected either way: their cursor follows focus, which is why the
+   focus move below asks the browser NOT to scroll and lets this decide. */
+function scrollDescriptionIntoView(){
+  const el = $("describedBlock");
+  if (!el || el.hidden || typeof el.scrollIntoView !== "function") return;
+  const still = window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  try { el.scrollIntoView({ block: "start", behavior: still ? "auto" : "smooth" }); }
+  catch(e){ try { el.scrollIntoView(true); } catch(e2){} }
 }
 
 function showScreen(name, focusId){
@@ -1332,6 +1454,51 @@ async function decodeImage(file){
   catch(e){ return await decodeViaImgTag(jpeg); }
 }
 
+function fileToDataUrl(file){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result));
+    r.onerror = () => rej(new Error("The image could not be read."));
+    r.readAsDataURL(file);
+  });
+}
+
+/* Study images are described from the ORIGINAL file, exactly as generate.py
+   described it for the survey. Running them through the resize-and-recompress
+   path meant participants were hearing descriptions of a shrunken copy of the
+   image the survey used the original of — which bites hardest on Obj_Text,
+   where the prompt demands verbatim transcription of text that may stop being
+   legible once it is downscaled. Participant photos are still compressed:
+   they have no part-one counterpart to match, and they are multi-megapixel
+   phone shots being uploaded from someone's home over cellular. */
+async function preparePhoto(file, researcher){
+  if (researcher){
+    const dataUrl = await fileToDataUrl(file);
+    let width = 0, height = 0;
+    try {
+      const bitmap = await decodeImage(file);
+      width = bitmap.width || bitmap.naturalWidth || 0;
+      height = bitmap.height || bitmap.naturalHeight || 0;
+      if (bitmap.close) bitmap.close();
+    } catch(e){ /* dimensions are metadata; not worth failing the session over */ }
+    return { dataUrl, base64: dataUrl.split(",")[1], width, height,
+             mediaType: file.type || "image/jpeg", passthrough: true };
+  }
+  /* Two copies, deliberately. The model gets the resized JPEG — the vision API
+     downscales large images anyway, and a multi-megapixel upload in front of
+     every generation is seconds a participant spends waiting. Drive gets the
+     file untouched, because that is the archive and storage is not scarce. */
+  const img = await fileToCompressedJpeg(file);
+  const originalDataUrl = await fileToDataUrl(file);
+  return Object.assign(img, {
+    mediaType: "image/jpeg",
+    passthrough: false,
+    originalBase64: originalDataUrl.split(",")[1],
+    originalMediaType: file.type || "image/jpeg",
+    originalBytes: file.size || 0
+  });
+}
+
 async function fileToCompressedJpeg(file){
   const bitmap = await decodeImage(file);
   const w0 = bitmap.width || bitmap.naturalWidth;
@@ -1346,7 +1513,8 @@ async function fileToCompressedJpeg(file){
   canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
   const dataUrl = canvas.toDataURL("image/jpeg", CONFIG.JPEG_QUALITY);
   if (bitmap.close) bitmap.close();
-  return { dataUrl, base64: dataUrl.split(",")[1], width: w, height: h };
+  return { dataUrl, base64: dataUrl.split(",")[1], width: w, height: h,
+           originalWidth: w0, originalHeight: h0 };
 }
 
 async function handleFile(file, source, researcher){
@@ -1362,15 +1530,27 @@ async function handleFile(file, source, researcher){
   $("preferBtn").hidden = true;
 
   try {
-    const img = await withTimeout(fileToCompressedJpeg(file), 30000,
+    const img = await withTimeout(preparePhoto(file, researcher), 30000,
       "The photo took too long to prepare.");
     const imageId = researcher ? researcher.id + "-" + uid("r").slice(2) : uid("img");
     const rec = {
       imageId,
       capturedAt: new Date().toISOString(),
       source,
-      mediaType: "image/jpeg",
-      width: img.width, height: img.height,
+      /* Two media types, because there are two files. mediaType describes the
+         ORIGINAL archived to Drive; modelMediaType describes the bytes actually
+         sent to the API — which for a participant photo is always the resized
+         JPEG, whatever the original was. Labelling the data URL with the
+         original's type would hand the API a JPEG announced as a PNG. */
+      mediaType: img.originalMediaType || img.mediaType,
+      modelMediaType: img.passthrough ? (img.mediaType || "image/jpeg") : "image/jpeg",
+      sentAsOriginal: !!img.passthrough,
+      /* width/height are the ORIGINAL photo's, matching what lands in Drive;
+         modelWidth/modelHeight are what the API actually saw. */
+      width: img.originalWidth || img.width,
+      height: img.originalHeight || img.height,
+      modelWidth: img.width, modelHeight: img.height,
+      originalBytes: img.originalBytes || Math.round(img.base64.length * 0.75),
       approxBytes: Math.round(img.base64.length * 0.75),
       researcherImageId: researcher ? researcher.id : "",
       researcherCategory: researcher ? researcher.category : "",
@@ -1384,7 +1564,7 @@ async function handleFile(file, source, researcher){
     // Upload the image itself before generating anything.
     await DB.put(rec.storageKey, {
       sessionId: state.sessionId, participantId: state.participantId,
-      imageId, capturedAt: rec.capturedAt, mediaType: "image/jpeg",
+      imageId, capturedAt: rec.capturedAt, mediaType: img.mediaType,
       width: img.width, height: img.height, dataUrl: img.dataUrl
     });
     logEvent("image_captured", { imageId, source, width:img.width, height:img.height });
@@ -1393,8 +1573,16 @@ async function handleFile(file, source, researcher){
       width: img.width, height: img.height,
       researcherImageId: rec.researcherImageId,
       researcherCategory: rec.researcherCategory,
+      mediaType: rec.mediaType,
+      originalBytes: rec.originalBytes,
+      modelWidth: rec.modelWidth, modelHeight: rec.modelHeight,
       // study images already live in the repo; no need to re-upload the bytes
-      imageBase64: (researcher && !UPLOAD_RESEARCHER_IMAGES) ? "" : img.base64
+      imageBase64: (researcher && !UPLOAD_RESEARCHER_IMAGES) ? "" : (img.originalBase64 || img.base64),
+      /* A viewable companion only when the original is not already a JPEG —
+         a HEIC archive that neither Drive nor the Sheet can preview is a worse
+         archive than one you can actually look at. */
+      viewBase64: (!researcher && img.originalMediaType && img.originalMediaType !== "image/jpeg")
+        ? img.base64 : ""
     });
 
     /* Each new photo starts from the participant's own settings, not ours —
@@ -1529,7 +1717,8 @@ function describeEmpty(data, choice){
   if (finish === "length" || (reasoning && usage.completion_tokens && reasoning >= usage.completion_tokens - 2)){
     return "The model spent its whole " + CONFIG.MAX_OUTPUT_TOKENS + "-token budget on reasoning (" +
            reasoning + " reasoning tokens) and never got to the description. " +
-           "Raise MAX_OUTPUT_TOKENS or lower REASONING_EFFORT.";
+           "Raise MAX_OUTPUT_TOKENS, or set REASONING_EFFORT to \"low\" — " +
+           "though note that departs from the survey pipeline, which sent none.";
   }
   return "The description came back empty. finish_reason: " + finish +
          "; completion tokens: " + (usage.completion_tokens != null ? usage.completion_tokens : "unknown") +
@@ -1675,14 +1864,15 @@ async function generate(isFirst){
   try {
     const body = {
       model: CONFIG.MODEL,
-      max_completion_tokens: CONFIG.MAX_OUTPUT_TOKENS,
+      max_completion_tokens: img.researcherImageId
+        ? CONFIG.MAX_OUTPUT_TOKENS : CONFIG.MAX_OUTPUT_TOKENS_OWN_PHOTO,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: [
           { type: "text", text: userMessage },
-          { type: "image_url", image_url: {
-              url: "data:image/jpeg;base64," + img.base64,
-              detail: CONFIG.IMAGE_DETAIL } }
+          { type: "image_url", image_url: Object.assign(
+              { url: "data:" + (img.modelMediaType || "image/jpeg") + ";base64," + img.base64 },
+              CONFIG.IMAGE_DETAIL ? { detail: CONFIG.IMAGE_DETAIL } : {}) }
         ]}
       ]
     };
@@ -1744,6 +1934,8 @@ async function generate(isFirst){
       verbosity: CONFIG.VERBOSITY,
       usage: data.usage || null,
       systemPrompt,
+      promptVersion: PROMPT_VERSION,
+      promptHash: promptHash(systemPrompt),
       userMessage,
       styleMode: freeform ? "freeform" : "dimensions",
       freeformText: freeform ? state.freeformText : "",
@@ -1754,6 +1946,20 @@ async function generate(isFirst){
       preferred: false,
       createdAt: new Date().toISOString()
     };
+    /* The alias we sent versus the snapshot OpenAI actually served. If these
+       diverge mid-study, part two stops being comparable with part one, and
+       the only way to notice is to look. */
+    if (record.responseModel && record.responseModel !== CONFIG.MODEL && !state.warnedModel){
+      state.warnedModel = true;
+      /* Console and the Events tab, NOT the screen. #setupError is a
+         role="alert" region the participant hears; a note about CONFIG.MODEL
+         is for the researcher and would be alarming jargon read aloud to
+         someone who has just started a session. */
+      console.warn("[DescStyle] Asked for model \"" + CONFIG.MODEL +
+        "\" but OpenAI served \"" + record.responseModel + "\".");
+      Sync.push({ type: "event", eventType: "model_drift",
+        detail: "requested " + CONFIG.MODEL + ", served " + record.responseModel });
+    }
     state.descriptions.push(record);
     /* Only dimension runs set a comparison point for the "you've changed the
        settings" note. After a free-text run there is nothing to compare to. */
@@ -1784,6 +1990,8 @@ async function generate(isFirst){
       latencyMs: record.latencyMs, model: record.model,
       responseModel: record.responseModel,
       finishReason: record.finishReason,
+      promptVersion: record.promptVersion,
+      promptHash: record.promptHash,
       userMessage, text
     });
     await saveNow();
@@ -1799,7 +2007,10 @@ async function generate(isFirst){
     /* Focus the replay button first so the VoiceOver cursor has somewhere
        sensible to land (the describe button it was on has just gone away),
        then let the live region speak the description. */
-    focusSoon($("readBtn"));
+    /* Scroll first, then focus without scrolling again: focusing the replay
+       button would otherwise pull the viewport down past the text it plays. */
+    scrollDescriptionIntoView();
+    focusSoon($("readBtn"), { preventScroll: true });
     if (CONFIG.AUTO_SPEAK) readAloud(record, null, true);
   } catch(err){
     if (!stillCurrent()){
@@ -1888,6 +2099,14 @@ function readAloud(rec, btn, auto){
 
 function setPreferred(rec){
   if (!rec) return;
+  /* Ludoi pressed this several times because nothing said it had worked. Each
+     press used to file another preference row. Say it is already saved and
+     stop, so repeated presses reassure rather than pollute the Events tab. */
+  if (rec.preferred){
+    announce("Already saved. Version " + rec.generationIndex +
+             " is the description you prefer.");
+    return;
+  }
   const total = currentVersions().length;
   state.descriptions.forEach(d => { if (d.imageId === rec.imageId) d.preferred = false; });
   rec.preferred = true;
@@ -1909,7 +2128,9 @@ function setPreferred(rec){
   renderVersionLine();
   updatePreferBtn();
   withFocusRestored(renderHistory);
-  announce("Saved version " + rec.generationIndex + " as your preferred description. " +
+  /* Leads with the outcome: the first word answers "did that work?". */
+  announce("Saved. Version " + rec.generationIndex +
+           " is now the description you prefer. " +
            (rec.styleMode === "freeform"
               ? "Written from your own words."
               : "Written with " + rec.styleSentence));
@@ -1931,8 +2152,11 @@ function updatePreferBtn(){
   const btn = $("preferBtn");
   if (!rec){ btn.hidden = true; return; }
   btn.hidden = false;
+  /* aria-pressed carries the state to a screen reader; the fill and tick carry
+     it visually. Both are needed — the label alone changed too quietly. */
+  btn.setAttribute("aria-pressed", rec.preferred ? "true" : "false");
   btn.textContent = rec.preferred
-    ? "Version " + rec.generationIndex + " is the description you prefer"
+    ? "Saved as the description you prefer"
     : "Save version " + rec.generationIndex + " as the description I prefer";
 }
 
@@ -2037,9 +2261,10 @@ function renderHistory(){
     const prefB = document.createElement("button");
     prefB.type = "button";
     prefB.id = "pref-" + rec.descriptionId;
-    prefB.className = "btn btn-secondary";
+    prefB.className = "btn btn-secondary btn-confirm";
+    prefB.setAttribute("aria-pressed", rec.preferred ? "true" : "false");
     prefB.textContent = rec.preferred
-      ? "Version " + rec.generationIndex + " is the description you prefer"
+      ? "Saved as the description you prefer"
       : "Save version " + rec.generationIndex + " as the description I prefer";
     prefB.addEventListener("click", () => { if (!busyBlocked()) setPreferred(rec); });
 
@@ -2302,12 +2527,32 @@ function startSession(pid, source){
     pixelRatio: window.devicePixelRatio || 1,
     levelOrder: JSON.stringify(LEVEL_ORDER),
     dimensionOrder: DIMENSION_ORDER.join(","),
-    pidSource: source
+    pidSource: source,
+    promptVersion: PROMPT_VERSION,
+    systemPrompt: SYSTEM_PROMPT,
+    systemPromptFreeform: SYSTEM_PROMPT_FREEFORM,
+    /* The full generation configuration, so a session can be reproduced from
+       its own row rather than from whatever the HTML happened to say that day. */
+    model: CONFIG.MODEL,
+    reasoningEffort: CONFIG.REASONING_EFFORT === null ? "(omitted)" : CONFIG.REASONING_EFFORT,
+    maxOutputTokens: CONFIG.MAX_OUTPUT_TOKENS,
+    seed: CONFIG.SEED === null ? "(omitted)" : CONFIG.SEED,
+    imageDetail: CONFIG.IMAGE_DETAIL === null ? "(omitted)" : CONFIG.IMAGE_DETAIL,
+    freeformMaxWords: CONFIG.FREEFORM_MAX_WORDS
   });
   saveNow();
   showScreen("style", "styleH");
   announce("Session started for participant " + pid + ".");
   verifyCollector();
+  /* A dated snapshot contains its date; a floating alias does not. Recorded,
+     not displayed: the participant's screen is not the place for a note about
+     model naming, and #setupError is read aloud as an alert. */
+  if (CONFIG.MODEL_MUST_BE_PINNED && !/\d{4}-\d{2}-\d{2}/.test(CONFIG.MODEL)){
+    console.warn("[DescStyle] CONFIG.MODEL is \"" + CONFIG.MODEL +
+      "\" — a floating alias, not a dated snapshot. It can change between sessions.");
+    Sync.push({ type: "event", eventType: "model_not_pinned",
+      detail: "CONFIG.MODEL = " + CONFIG.MODEL });
+  }
 }
 
 $("startBtn").addEventListener("click", () => {
