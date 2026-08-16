@@ -636,9 +636,16 @@ h2.section{margin-top:var(--gap-section)}
       <div id="describedBlock" hidden>
       <h2 id="descH" class="block-top">Description</h2>
 
+      <!-- Focus lands on #descText when a version arrives, so the paragraph is
+           read on arrival. The version number has to travel with it: it used
+           to be carried by the live-region announcement ("Version 2. …"), and
+           a screen reader focusing the text alone would not pick it up from
+           the line above. It is a visually hidden prefix inside the paragraph
+           instead, and .versionline — which now says the same thing — is
+           aria-hidden so it is not heard twice on a swipe through. -->
       <article class="sheet" id="sheet" aria-busy="false">
-        <p class="versionline"><span id="versionLabel">Version 1</span></p>
-        <p class="desc" id="descText" tabindex="-1"></p>
+        <p class="versionline" aria-hidden="true"><span id="versionLabel">Version 1</span></p>
+        <p class="desc" id="descText" tabindex="-1"><span class="vh" id="descVersionVH"></span><span id="descBody"></span></p>
         <p class="stylesentence" id="styleSentence"></p>
       </article>
 
@@ -2011,13 +2018,23 @@ async function generate(isFirst){
     setBusy(false);
     updateModeUI();
 
-    /* Scroll the new version into view, then move focus to the replay button
-       without scrolling again — the describe button the cursor was on has just
-       gone away, and focusing readBtn would otherwise pull the viewport down
-       past the text it plays. The live region speaks the description after. */
+    /* Scroll the new version into view, then move focus without scrolling
+       again — the describe button the cursor was on has just gone away, and
+       focusing anything inside the sheet would otherwise pull the viewport
+       down past the text.
+
+       Where focus lands IS the auto-speak decision now. On the description,
+       the screen reader reads it on arrival, which is the announcement — so
+       nothing goes through the live region, only the play is logged. With
+       AUTO_SPEAK off, focus stops at the replay button instead and the
+       description is not spoken until the participant asks for it. */
     scrollDescriptionIntoView();
-    focusSoon($("readBtn"), { preventScroll: true });
-    if (CONFIG.AUTO_SPEAK) readAloud(record, null, true);
+    if (CONFIG.AUTO_SPEAK){
+      focusSoon($("descText"), { preventScroll: true });
+      logRead(record, true);
+    } else {
+      focusSoon($("readBtn"), { preventScroll: true });
+    }
   } catch(err){
     if (!stillCurrent()){
       logEvent("description_error", { imageId: img.imageId, style, message: String(err && err.message) });
@@ -2080,11 +2097,15 @@ function withFocusRestored(fn){
 /* Reading is an explicit act, so every play is a data point: how many times a
    hedging version gets replayed before a decision is itself a finding.
    `btn` is the control that was pressed, relabelled in place rather than by
-   rebuilding the list around it. */
-function readAloud(rec, btn, auto){
-  if (!rec) return;
+   rebuilding the list around it.
+
+   Split from the announcement because the first reading is no longer done by
+   the live region: focus moves to the description itself, and the screen
+   reader reads it on arrival. That still counts as a play and still has to be
+   logged — it just must not also be pushed through #live, or the participant
+   hears the whole description twice. */
+function logRead(rec, auto, btn){
   const n = (state.readCounts[rec.descriptionId] = (state.readCounts[rec.descriptionId] || 0) + 1);
-  announce("Version " + rec.generationIndex + ". " + rec.text);
   if (rec.descriptionId === state.renderedDescriptionId) updateReadBtn();
   else if (btn) btn.textContent = "Read version " + rec.generationIndex + " again";
   logEvent("description_read", {
@@ -2101,6 +2122,12 @@ function readAloud(rec, btn, auto){
             (n === 1 ? " time" : " times")
   });
   scheduleSave();
+}
+
+function readAloud(rec, btn, auto){
+  if (!rec) return;
+  announce("Version " + rec.generationIndex + ". " + rec.text);
+  logRead(rec, auto, btn);
 }
 
 function setPreferred(rec){
@@ -2204,16 +2231,21 @@ function restoreCurrentImageView(){
   updateModeUI();
 }
 
+/* Both copies of the title, always together: the visible line and the hidden
+   prefix the screen reader hears when focus lands on the description. Saving a
+   preference changes the title, so this runs again then. */
 function renderVersionLine(){
   const rec = renderedRecord();
   if (!rec) return;
-  $("versionLabel").textContent = versionTitle(rec);
+  const title = versionTitle(rec);
+  $("versionLabel").textContent = title;
+  $("descVersionVH").textContent = title + ". ";
 }
 function renderDescription(rec){
   state.renderedDescriptionId = rec.descriptionId;
   $("sheet").hidden = false;
-  $("versionLabel").textContent = versionTitle(rec);
-  $("descText").textContent = rec.text;
+  renderVersionLine();
+  $("descBody").textContent = rec.text;
   $("styleSentence").textContent = rec.styleMode === "freeform"
     ? "Written from your own description of the style you want."
     : "Written with " + rec.styleSentence;
