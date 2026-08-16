@@ -141,7 +141,6 @@ h2{font-size:1.25rem}
 h3{font-size:1.0625rem}
 p{margin:0 0 var(--gap-para);max-width:70ch}
 .muted{color:var(--ink-2);font-size:.9375rem}
-/* Weight, not colour, now marks the eyebrow and version line as secondary. */
 /* 1.4.8 asks for paragraph spacing of at least 1.5x line spacing. Tight
    groupings (hints, single-line notes) opt out where they are not body text. */
 .tight{margin-bottom:var(--gap-heading)}
@@ -358,6 +357,11 @@ details > div{padding:0;margin-top:var(--pad-text)}
   border-radius:var(--radius);padding:var(--pad-text);margin-bottom:var(--pad-text);font-weight:700;
 }
 .alertbox:empty{display:none}
+/* The polite setup notice is a box with a heading inside it, so it is never
+   :empty while shown and is hidden by the [hidden] attribute instead. The
+   heading is what makes it findable in the rotor once it has been announced —
+   a bare live region cannot be navigated back to. */
+.notice-head{font-size:1.0625rem;margin:0 0 var(--gap-tight)}
 
 .spinner{
   flex:0 0 auto;width:1.125rem;height:1.125rem;border-radius:50%;
@@ -540,7 +544,21 @@ h2.section{margin-top:var(--gap-section)}
       <h1 id="styleH" tabindex="-1">Set up your description style</h1>
       <p class="muted" id="styleWho"></p>
       <p>Before you take any photos, choose how you'd like descriptions written. Nothing is selected yet — pick one option in each of the four groups. These become your starting settings for every photo, and you can change them at any point during the session.</p>
+
+      <!-- Two regions, not one. #setupError is assertive and belongs to things
+           the participant just did: it interrupts because they asked for
+           something and it did not happen. #setupNotice is the study's own
+           plumbing, which arrives on a timer with no relationship to what they
+           are doing — so it is polite, and it carries a heading so it can be
+           swiped back to after the fact. They shared one element before, and
+           the validation path's textContent = "" silently erased a collector
+           warning the participant had already been interrupted by. -->
       <div id="setupError" class="alertbox" role="alert"></div>
+
+      <div id="setupNotice" class="alertbox" role="status" aria-live="polite" hidden>
+        <h2 class="notice-head" id="setupNoticeHead">Setup problem</h2>
+        <p class="flush" id="setupNoticeText"></p>
+      </div>
 
       <form id="setupStyleForm" novalidate autocomplete="off">
         <div id="setupControls"></div>
@@ -1236,6 +1254,7 @@ const state = {
   awaitingDescribe: false,       // a photo is staged but not yet sent
   generating: false,
   warnedSync: false,
+  collectorWarned: false,        // the continue gate has reported a bad collector once
   pidFromLink: false
 };
 
@@ -1663,10 +1682,6 @@ function setBusy(on, msg){
     const el = $(id);
     if (el) el.setAttribute("aria-disabled", on ? "true" : "false");
   });
-  /* readBtn used to stay live during generation so the current version could
-     be replayed while the next was written. The previous version is now taken
-     off screen while writing, so there is nothing to replay and the button
-     goes with it — see generate(). */
   /* statusRow is itself a live region, so setting its text announces it.
      Announcing again through #live would double-speak. */
 }
@@ -1884,8 +1899,6 @@ async function generate(isFirst){
 
     let url, headers, payload;
     if (usingCollectorProxy()){
-      /* text/plain keeps this a "simple" cross-origin request; Apps Script does
-         not answer the CORS preflight that application/json would trigger. */
       url = CONFIG.APPS_SCRIPT_URL;
       headers = { "Content-Type": "text/plain;charset=utf-8" };
       payload = { type: "openai", body };
@@ -1951,8 +1964,7 @@ async function generate(isFirst){
        the only way to notice is to look. */
     if (record.responseModel && record.responseModel !== CONFIG.MODEL && !state.warnedModel){
       state.warnedModel = true;
-      /* Console and the Events tab, NOT the screen. #setupError is a
-         role="alert" region the participant hears; a note about CONFIG.MODEL
+      /* Console and the Events tab, NOT the screen. A note about CONFIG.MODEL
          is for the researcher and would be alarming jargon read aloud to
          someone who has just started a session. */
       console.warn("[DescStyle] Asked for model \"" + CONFIG.MODEL +
@@ -1999,16 +2011,10 @@ async function generate(isFirst){
     setBusy(false);
     updateModeUI();
 
-    /* Nothing is read automatically. Focus lands on the play button, whose
-       label already carries the news ("Read version 2"), so VoiceOver announces
-       readiness by announcing the control — no live-region race, no long
-       one-shot read that cannot be recovered, and a natural pause for the
-       interviewer to ask what the participant hoped to learn from this photo. */
-    /* Focus the replay button first so the VoiceOver cursor has somewhere
-       sensible to land (the describe button it was on has just gone away),
-       then let the live region speak the description. */
-    /* Scroll first, then focus without scrolling again: focusing the replay
-       button would otherwise pull the viewport down past the text it plays. */
+    /* Scroll the new version into view, then move focus to the replay button
+       without scrolling again — the describe button the cursor was on has just
+       gone away, and focusing readBtn would otherwise pull the viewport down
+       past the text it plays. The live region speaks the description after. */
     scrollDescriptionIntoView();
     focusSoon($("readBtn"), { preventScroll: true });
     if (CONFIG.AUTO_SPEAK) readAloud(record, null, true);
@@ -2231,7 +2237,6 @@ function renderHistory(){
   }
   earlier.forEach(rec => {
     const div = document.createElement("div");
-    /* Anything in the history has already been on screen, so it is not gated. */
     div.className = "version";
 
     const h = document.createElement("h3");
@@ -2282,8 +2287,6 @@ function setNote(text){
   note.hidden = false;
 }
 
-/* Keeps the result screen honest about which of the two style routes produced
-   what is on screen, and makes every button say what it will actually do. */
 /* Only forced on a mode CHANGE, so a participant who collapses the settings
    themselves while using the four dimensions is not overridden the next time
    anything re-renders. */
@@ -2342,8 +2345,9 @@ function buildControls(hostId, prefix, onChange, initial, headingTag){
        grouping but hidden. Without headings the four dimensions are invisible
        to the rotor, so reaching the regenerate button from the description
        means swiping past every option and every definition — about thirty
-       stops. With them it is four. */
-    /* Level, not appearance: on the setup screen these sit directly under the
+       stops. With them it is four.
+
+       Level, not appearance: on the setup screen these sit directly under the
        h1, on the result screen they sit under the "Change the style" h2.
        Hard-coding h3 skipped a level on the setup screen, which breaks
        heading-level navigation. .dimhead keeps them looking identical. */
@@ -2408,9 +2412,8 @@ function buildControls(hostId, prefix, onChange, initial, headingTag){
       const bl = document.createElement("p");
       bl.className = "desc2"; bl.id = descId; bl.textContent = lvl.blurb;
 
-      /* The definition sits outside the <label> so it stays out of the radio's
-         accessible name — but it is inside the visible box, so a tap on it has
-         to select the option like the rest of the box does. */
+      /* The definition is outside the label but inside the visible box, so a
+         tap on it has to select the option like the rest of the box does. */
       wrap.addEventListener("click", e => {
         if (e.target.closest("label")) return;   // the label handles its own clicks
         if (input.checked) return;
@@ -2457,6 +2460,8 @@ function onStyleChange(dim, lvl){
 }
 function onSetupStyleChange(dim, lvl){
   state.pendingBaseStyle[dim.key] = lvl.key;
+  /* Clears the VALIDATION alert only. The collector warning lives in its own
+     region and is not touched by anything the participant selects. */
   if (DIMENSIONS.every(d => state.pendingBaseStyle[d.key])) $("setupError").textContent = "";
 }
 
@@ -2546,7 +2551,7 @@ function startSession(pid, source){
   verifyCollector();
   /* A dated snapshot contains its date; a floating alias does not. Recorded,
      not displayed: the participant's screen is not the place for a note about
-     model naming, and #setupError is read aloud as an alert. */
+     model naming. */
   if (CONFIG.MODEL_MUST_BE_PINNED && !/\d{4}-\d{2}-\d{2}/.test(CONFIG.MODEL)){
     console.warn("[DescStyle] CONFIG.MODEL is \"" + CONFIG.MODEL +
       "\" — a floating alias, not a dated snapshot. It can change between sessions.");
@@ -2563,8 +2568,6 @@ $("startBtn").addEventListener("click", () => {
   startSession(pid, fromLink ? "link" : "typed");
 });
 
-/* Catch a misconfigured collector while the participant is still on the style
-   screen, rather than after they have taken photos that go nowhere. */
 function goToTask(){
   if (RESEARCHER_IMAGES.length){
     showScreen("images", "imagesH");
@@ -2575,17 +2578,52 @@ function goToTask(){
   }
 }
 
-function verifyCollector(){
-  if (!CONFIG.APPS_SCRIPT_URL){
-    $("setupError").textContent =
-      "Setup problem: no study database is configured, so nothing will be saved. Tell your interviewer before continuing.";
+/* ---------------------------------------------------------------------
+   Collector health.
+
+   Two ways it gets reported, and they are deliberately different in
+   temperament. showSetupNotice is polite and arrives on a timer: it is the
+   interviewer's cue, and it must not cut across a participant reading the
+   four definitions. The continue gate below is assertive, because by then
+   the participant has asked to move on and an interruption is expected.
+   --------------------------------------------------------------------- */
+const COLLECTOR_NONE  = "No study database is configured, so nothing from this session will be saved. Tell your interviewer before continuing.";
+const COLLECTOR_STUCK = "This session is not reaching the study database. Tell your interviewer before continuing.";
+
+function collectorProblem(){
+  if (!CONFIG.APPS_SCRIPT_URL) return COLLECTOR_NONE;
+  if (Sync.failed || Sync.queue.length) return COLLECTOR_STUCK;
+  return "";
+}
+
+/* Revealing an aria-live region and filling it in the same frame is dropped by
+   some screen readers — the region is not in the accessibility tree yet when
+   the text arrives. Unhide first, write on the next paint. */
+function showSetupNotice(text){
+  const box = $("setupNotice");
+  if (!box) return;
+  if (!text){
+    box.hidden = true;
+    $("setupNoticeText").textContent = "";
     return;
   }
+  box.hidden = false;
+  const write = () => { $("setupNoticeText").textContent = text; };
+  if (typeof requestAnimationFrame === "function"){
+    requestAnimationFrame(() => requestAnimationFrame(write));
+  } else {
+    setTimeout(write, 40);
+  }
+}
+
+function verifyCollector(){
+  if (!CONFIG.APPS_SCRIPT_URL){ showSetupNotice(COLLECTOR_NONE); return; }
   setTimeout(() => {
-    if (Sync.queue.length || Sync.failed){
-      $("setupError").textContent =
-        "Setup problem: this session is not reaching the study database. Tell your interviewer before continuing.";
-    }
+    /* If they have already moved on, this region is inside a hidden section and
+       would announce nothing anyway. The continue gate has run by then, and the
+       sync pill on the result screen carries it from there. */
+    if ($("screen-style").hidden) return;
+    showSetupNotice(collectorProblem());
   }, 8000);
 }
 
@@ -2612,14 +2650,29 @@ $("saveStyleBtn").addEventListener("click", () => {
   const missing = DIMENSIONS.filter(d => !state.pendingBaseStyle[d.key]);
   if (missing.length){
     const names = missing.map(d => d.label).join(", ");
-    $("setupError").textContent =
-      "Please choose an option for: " + names + ".";
+    /* The alert region carries this on its own; announcing it through #live as
+       well would speak it twice. */
+    $("setupError").textContent = "Please choose an option for: " + names + ".";
     const first = $("set-" + missing[0].key + "-" + LEVEL_ORDER[missing[0].key][0]);
     if (first) first.focus();
-    announce("Still to choose: " + names + ".");
     return;
   }
   $("setupError").textContent = "";
+
+  /* The one assertive moment for the collector, and it is participant-
+     initiated: this is the last point where stopping costs nothing. A second
+     press continues regardless — the session still works without the database,
+     and it is the interviewer's call, not the app's. */
+  const problem = collectorProblem();
+  if (problem && !state.collectorWarned){
+    state.collectorWarned = true;
+    showSetupNotice("");
+    $("setupError").textContent = "Setup problem: " + problem +
+      " Choose “Save these settings and continue” again to carry on regardless.";
+    return;
+  }
+  showSetupNotice("");
+
   commitBaseStyle(Object.assign({}, state.pendingBaseStyle));
 });
 
@@ -2898,7 +2951,6 @@ Object.keys(THEMES).forEach(id => {
 });
 applyTheme();
 
-/* Enter key on the participant ID field starts the session */
 $("pid").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); $("startBtn").click(); } });
 
 /* ---------------------------------------------------------------------
@@ -2931,7 +2983,6 @@ $("pid").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDef
 
 updateSyncPill();
 
-/* The key field only appears when no proxy is holding the key for us. */
 if (!usingCollectorProxy() && !CONFIG.PROXY_URL) $("keyBlock").hidden = false;
 
 /* pagehide, not beforeunload: iOS Safari fires beforeunload unreliably.
