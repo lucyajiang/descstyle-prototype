@@ -320,7 +320,14 @@ fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:var(--gap-hair) 0 va
    ::after content can be spoken ("down pointing triangle") by some screen
    readers. Role and expanded/collapsed state still come from the native
    element, so nothing about the announcement changes. */
-details{border:0;background:transparent;margin-bottom:var(--pad-text);border-radius:0}
+/* --gap-stack, matching `.btn + .btn`: a disclosure sits in the same column as
+   the buttons around it (its summary is styled as one), so it has to keep the
+   same rhythm or the stack reads as two groups that were spaced by accident. */
+details{border:0;background:transparent;margin-bottom:var(--gap-stack);border-radius:0}
+/* .btn is inline-flex, so its margins never collapse with a neighbour's — the
+   gap is whatever ONE side declares. A button before a disclosure declared
+   nothing, so they touched. */
+.btn + details{margin-top:var(--gap-stack)}
 summary{
   position:relative;
   min-height:var(--tap);display:flex;align-items:center;justify-content:center;
@@ -467,7 +474,7 @@ h2.section{margin-top:var(--gap-section)}
 </style>
 </head>
 <body>
-<a class="skip" href="#main">Skip to main content</a>
+<a class="skip" id="skipLink" href="#main">Skip to main content</a>
 
 <div class="wrap">
   <header class="mast">
@@ -540,10 +547,22 @@ h2.section{margin-top:var(--gap-section)}
 
     <!-- ========================= STYLE SETUP ========================= -->
     <section id="screen-style" aria-labelledby="styleH" hidden>
-      <p class="muted tight" id="stepStyle">Step 1 of 3</p>
-      <h1 id="styleH" tabindex="-1">Set up your description style</h1>
+      <!-- The step count is aria-hidden here and repeated as a visually
+           hidden prefix inside the h1 instead. Focus lands on the h1 when the
+           screen opens, and a heading-by-heading pass skips loose paragraphs
+           entirely, so as a separate <p> the progress indicator was invisible
+           to exactly the participant who most needed it. -->
+      <p class="muted tight" id="stepStyle" aria-hidden="true">Step 1 of 3</p>
+      <h1 id="styleH" tabindex="-1"><span class="vh" id="stepStyleVH"></span><span id="styleHeading">Set up your description style</span></h1>
       <p class="muted" id="styleWho"></p>
-      <p>Before you take any photos, choose how you'd like descriptions written. Nothing is selected yet — pick one option in each of the four groups. These become your starting settings for every photo, and you can change them at any point during the session.</p>
+      <!-- Two intros, because this screen is reached twice and the first
+           wording is wrong the second time. On a return visit "before you take
+           any photos" is false, nothing is unselected, and the participant
+           needs to know what changing these does NOT do — the description they
+           were just listening to is not rewritten. -->
+      <p id="styleIntroSetup">Before you take any photos, choose how you'd like descriptions written. Nothing is selected yet — pick one option in each of the four groups. These become your default settings for every photo, and you can change them at any point during the session.</p>
+      <p id="styleIntroAgain" hidden>These are the settings every new photo starts from. Changing them here does not rewrite the description you were just listening to.</p>
+      <p class="muted" id="styleWhoAgain" hidden>If you opened this by accident, choose “Go back without changing anything” at the bottom.</p>
 
       <!-- Two regions, not one. #setupError is assertive and belongs to things
            the participant just did: it interrupts because they asked for
@@ -563,13 +582,23 @@ h2.section{margin-top:var(--gap-section)}
       <form id="setupStyleForm" novalidate autocomplete="off">
         <div id="setupControls"></div>
         <button type="button" class="btn btn-primary" id="saveStyleBtn">Save these settings and continue</button>
+        <!-- Shown only on a RETURN visit. There is deliberately no way out of
+             the first pass: the session cannot proceed without four settings,
+             and an escape hatch there would just be a way to get stuck. On a
+             return visit the opposite is true — the participant already has a
+             working default, so the likeliest reason to be on this screen is
+             that the button below the description was pressed by mistake, and
+             the only thing worse than an accidental tap is an accidental tap
+             you cannot undo. Nothing is committed until Save, so this discards
+             by simply leaving. -->
+        <button type="button" class="btn btn-secondary" id="cancelStyleBtn" hidden>Go back without changing anything</button>
       </form>
     </section>
 
     <!-- ======================== STUDY IMAGES ========================= -->
     <section id="screen-images" aria-labelledby="imagesH" hidden>
-      <p class="muted tight" id="stepImages">Step 2 of 3</p>
-      <h1 id="imagesH" tabindex="-1">Study images</h1>
+      <p class="muted tight" id="stepImages" aria-hidden="true">Step 2 of 3</p>
+      <h1 id="imagesH" tabindex="-1"><span class="vh" id="stepImagesVH"></span>Study images</h1>
       <p>Your interviewer will tell you which one to choose.</p>
       <div id="imageList"></div>
 
@@ -580,8 +609,8 @@ h2.section{margin-top:var(--gap-section)}
 
     <!-- =========================== CAPTURE =========================== -->
     <section id="screen-capture" aria-labelledby="captureH" hidden>
-      <p class="muted tight" id="stepCapture">Step 3 of 3</p>
-      <h1 id="captureH" tabindex="-1">Take a photo</h1>
+      <p class="muted tight" id="stepCapture" aria-hidden="true">Step 3 of 3</p>
+      <h1 id="captureH" tabindex="-1"><span class="vh" id="stepCaptureVH"></span>Take a photo</h1>
       <p>Point your camera at anything nearby that you'd normally want described. You can take as many photos as you like during the session.</p>
 
       <div class="card stack">
@@ -592,11 +621,17 @@ h2.section{margin-top:var(--gap-section)}
         <label class="filelabel secondary" for="libInput">Choose a photo from your library</label>
       </div>
 
-      <p id="studyPickWrap" hidden><button type="button" class="btn btn-secondary" id="toStudyImages">Back to the study images</button></p>
-
       <p class="muted">Photos and descriptions from this session are saved to the study's database so the interviewer can follow along with you.</p>
-      <p id="backToDescWrap" hidden><button type="button" class="btn btn-secondary" id="backToDesc">Back to the current description</button></p>
-      <p><button type="button" class="btn btn-quiet" id="editStyleBtn">Change my starting style settings</button></p>
+
+      <!-- These three were each wrapped in their own <p>, whose 1.5rem bottom
+           margin set the gap instead of the .btn + .btn rule — so they sat
+           twice as far apart as every other stacked button in the app. As
+           siblings they share the one rhythm. .btn-quiet on the last one was
+           the same problem in the other direction: an underlined auto-width
+           link in a column of full-width pills. -->
+      <button type="button" class="btn btn-secondary" id="backToDesc" hidden>Back to the current description</button>
+      <button type="button" class="btn btn-secondary" id="toStudyImages" hidden>Back to the study images</button>
+      <button type="button" class="btn btn-secondary" id="editStyleBtn">Change my default style settings</button>
     </section>
 
     <!-- ========================== FREE TEXT ========================== -->
@@ -643,16 +678,19 @@ h2.section{margin-top:var(--gap-section)}
            the line above. It is a visually hidden prefix inside the paragraph
            instead, and .versionline — which now says the same thing — is
            aria-hidden so it is not heard twice on a swipe through. -->
-      <article class="sheet" id="sheet" aria-busy="false">
+      <div class="sheet" id="sheet">
         <p class="versionline" aria-hidden="true"><span id="versionLabel">Version 1</span></p>
         <p class="desc" id="descText" tabindex="-1"><span class="vh" id="descVersionVH"></span><span id="descBody"></span></p>
         <p class="stylesentence" id="styleSentence"></p>
-      </article>
+      </div>
 
-      <!-- Both actions on the description sit after it, so the text itself is
-           the first thing reached under the heading. Focus still lands here
-           when a new version arrives: the button names the version, and the
-           live region reads the text a moment later. -->
+      <!-- Both actions sit after the description, so the text itself is the
+           first thing reached under the heading rather than two controls the
+           participant has to swipe past. When a new version arrives focus goes
+           to the description, not here — see the AUTO_SPEAK branch in
+           generate(); with AUTO_SPEAK off it stops on the replay button
+           instead. Both buttons name their version number, so they are
+           unambiguous when reached out of context from the rotor. -->
       <button type="button" class="btn btn-secondary" id="readBtn" hidden>Read the description aloud</button>
 
       <button type="button" class="btn btn-secondary btn-confirm" id="preferBtn"
@@ -661,9 +699,13 @@ h2.section{margin-top:var(--gap-section)}
       <!-- Directly under the current version, not down past the photo and the
            style controls: comparing two versions was a scroll to the bottom
            and back for every glance. -->
+      <!-- The summary deliberately does NOT repeat the heading above it. As
+           "Earlier versions" followed by "Earlier versions of this description
+           (0), button", a swipe heard the same three words twice; the count is
+           the only thing the button adds. -->
       <h2 class="section">Earlier versions</h2>
       <details id="historyDetails">
-        <summary><span id="historySummary">Earlier versions of this description (0)</span></summary>
+        <summary><span id="historySummary">All versions (0)</span></summary>
         <div id="historyList"></div>
       </details>
       </div><!-- /describedBlock -->
@@ -693,6 +735,15 @@ h2.section{margin-top:var(--gap-section)}
       </div>
 
       <form id="styleForm" novalidate autocomplete="off">
+        <!-- Outside the disclosure, and above it, because this is the one
+             action on this screen that does NOT need the four settings: it
+             reuses them exactly as they are. Inside, it would sit behind about
+             thirty swipe stops of radios and definitions that the participant
+             has no reason to visit. The rewrite button stays inside with the
+             settings, since it only exists once they have been changed — the
+             two are never on screen at the same time. -->
+        <button type="button" class="btn btn-primary" id="rerollBtn" hidden>Write another description with these settings</button>
+
         <!-- Collapsed while a free-text description is on screen: the four
              groups are around thirty swipe stops of settings that did not
              produce what the participant is looking at. The summary is a
@@ -700,7 +751,7 @@ h2.section{margin-top:var(--gap-section)}
              with expanded/collapsed state, and the contents leave the
              accessibility tree entirely while closed. -->
         <details id="controlsDetails" open>
-          <summary><span id="controlsSummary">Four style settings</span></summary>
+          <summary><span>Four style settings</span></summary>
           <div id="controls"></div>
 
           <div id="pendingNote" class="status" role="status" aria-live="polite" hidden>
@@ -713,7 +764,7 @@ h2.section{margin-top:var(--gap-section)}
                which is what removes the second blue button from the screen. -->
           <div class="stack" id="controlsActions">
             <button type="button" class="btn btn-primary" id="regenBtn">Write a new description with these settings</button>
-            <button type="button" class="btn btn-secondary" id="resetBtn">Go back to my starting style</button>
+            <button type="button" class="btn btn-secondary" id="resetBtn">Go back to my default style</button>
           </div>
         </details>
 
@@ -724,11 +775,24 @@ h2.section{margin-top:var(--gap-section)}
 
       <button type="button" class="btn btn-secondary block-top" id="newPhotoBtn">Choose another image or photo</button>
 
+      <!-- The protocol asks "any adjustments to your settings for ALL images?"
+           at the end of each task block, by which point the participant is
+           sitting on a result screen. Without this the only way to act on that
+           answer is to navigate off to the camera screen and find the same
+           control there, which costs interview time and a lost place. -->
+      <button type="button" class="btn btn-secondary" id="editStyleFromResult">Change my default style settings</button>
+
       <h2 class="section">Finishing up</h2>
       <p class="muted tight">When your interviewer says you're done, use this. It saves a copy of everything from this session.</p>
       <button type="button" class="btn btn-secondary" id="endBtn">End session</button>
-      <div id="endConfirm" hidden>
-        <p id="endConfirmText">This ends the session and saves everything. You won't be able to make more descriptions afterwards.</p>
+      <!-- Focus lands on the explanatory paragraph, not on "Yes". Focusing the
+           button announced "Yes, end the session, button" and the consequence
+           had to be carried by a competing live-region message; landing on the
+           text reads the consequence first and leaves the two buttons next in
+           reading order. tabindex="-1" makes it focusable without adding a tab
+           stop for anyone who does not need it. -->
+      <div id="endConfirm" role="group" aria-labelledby="endConfirmText" hidden>
+        <p id="endConfirmText" tabindex="-1">This ends the session and saves everything. You won't be able to make more descriptions afterwards.</p>
         <button type="button" class="btn btn-primary" id="endYesBtn">Yes, end the session</button>
         <button type="button" class="btn btn-secondary" id="endNoBtn">No, keep going</button>
       </div>
@@ -792,9 +856,11 @@ const CONFIG = {
   MAX_OUTPUT_TOKENS: 2000,
   MAX_OUTPUT_TOKENS_OWN_PHOTO: 8000,
   /* generate.py pinned a seed per candidate (e.g. 425). Deliberately null
-     here: with a fixed seed, "write the description again with these settings"
-     would return the identical text, and re-rolling the same style is
-     something participants actually do. The trade is that two participants on
+     here: with a fixed seed the "Write another description with these
+     settings" button would return the identical text every time, and re-rolling
+     the same cell is something participants actually do. That button exists
+     because of this line — pin a seed and it becomes a no-op that should be
+     removed rather than left to puzzle people. The trade is that two participants on
      identical settings see differently-worded descriptions of the same study
      image — acceptable for an interview, and every description is stored
      verbatim either way. */
@@ -807,22 +873,39 @@ const CONFIG = {
   FREEFORM_MAX_WORDS: 60,
   /* Must match SCRIPT_VERSION in the Apps Script. Only used to tell the
      participant which version a stale deployment should be reporting. */
-  COLLECTOR_VERSION: 15,
+  COLLECTOR_VERSION: 16,
   /* NULL to match gpt.py, whose image_url carries only `url` — so the survey
      stimuli were described at the API's default detail. Setting "high" here
      would have tiled the image differently from part one. */
   IMAGE_DETAIL: null,
 
-  /* Speak each new description through the live region the moment it lands,
-     the way Seeing AI and Be My AI do. The interviewer's window for intent
-     questions comes earlier now — the photo waits, undescribed, until the
-     participant presses "Describe this photo" — so there is no reason to make
-     them ask for the result as well. Set false and the description still
-     appears immediately; it just is not spoken until the replay button is
-     pressed. */
+  /* Speak each new description the moment it lands,
+     the way Seeing AI and Be My AI do. NOT via the live region: focus is moved
+     onto the description paragraph instead, so the screen reader reads it as
+     the thing it has just landed on. That is more reliable than a polite
+     announcement, which competes with every other region on the screen and is
+     silently dropped if one wins — and it leaves the participant's cursor ON
+     the text, so re-reading is a swipe rather than a hunt.
+     The interviewer's window for intent questions comes earlier now — the photo
+     waits, undescribed, until the participant presses "Describe this photo" —
+     so there is no reason to make them ask for the result as well. Set false and
+     focus stops at the replay button instead: the description still appears
+     immediately, it is just not spoken until the button is pressed. */
   AUTO_SPEAK: true,
   REQUEST_TIMEOUT_MS: 90000,   // a hung request otherwise blocks the session forever
   RETRY_TRANSIENT: 2,          // extra attempts on 429 / 5xx / network drop
+
+  /* Collector queue. Uploads had no timeout at all: a request that never
+     settles — the normal failure when a phone drops off wifi mid-POST — left
+     Sync.sending true forever, so the pill said "Saving…" and NOTHING else
+     uploaded for the rest of the session. Photos get a long ceiling because
+     they carry the untouched original; everything else is a small JSON row. */
+  SYNC_TIMEOUT_MS: 30000,
+  SYNC_TIMEOUT_PHOTO_MS: 180000,
+  /* After this many failures one record is parked and the queue moves on. A
+     record the script will never accept (oversized photo, schema mismatch)
+     otherwise blocks every record behind it indefinitely. */
+  SYNC_MAX_ATTEMPTS: 6,
 
   /* --- Auth. USE_COLLECTOR_PROXY routes model calls through the Apps Script,
          which holds the key server-side, so nothing secret lives in this file.
@@ -831,7 +914,7 @@ const CONFIG = {
   PROXY_URL: "",             // optional separate proxy; ignored when the above is true
 
   /* --- Study database: the Apps Script /exec URL --- */
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzCw2ZgRoZOAvADgiXJBkoUJ4pAYMVHf01xax0oauJm3f8DklxvggDXJv1vMx90YkqM/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxOZm8GCXKv74tMQB0eedqp0-QRaKxHuZHGl9h0C8bZIsKAjxNyeT3qYtA5ZxhlHppD/exec",
   /* Must match SHARED_SECRET in the Apps Script exactly. It travels in this
      public file, so it stops someone who finds the /exec URL in a log or a
      referrer header — not someone reading the page source. The spending cap on
@@ -857,13 +940,32 @@ const CONFIG = {
    empty and the study-image option disappears from the app entirely.
    `id` becomes the image_id in the sheet, so keep it stable and unique.
    --------------------------------------------------------------------- */
+/* The three categories named in the protocol's Task 2, in the order the
+   interviewer reads them out. Pets, Surroundings-indoors and Object were cut
+   with the protocol's Aug 17 revision — six images could not fit Part 2
+   alongside Task 3, which is where RQ2 actually gets answered.
+
+   The three that remain pull the style in three DIFFERENT directions, which is
+   what makes "would you change the style for this image?" produce an answer
+   rather than a shrug:
+     Obj_Text  — functional, accuracy-critical; pulls minimal/objective, and is
+                 the one place specificity has a hard edge (minimal transcribes
+                 only the most prominent text element)
+     People    — social; pulls interpretive/opinionated, and is where the
+                 protocol's credibility question has the most at stake
+     Sur_Ext   — orientation, lots of content; pulls maximal, and covers a
+                 context Task 3 will not, since participants photograph indoors
+
+   All three are phase-ONE survey images, each heard once per participant in a
+   single cell. Do not swap in the four phase-two demo images (Obj, Obj_Text,
+   Sur_Ext, Sur_Int, no numeric suffix): those were heard at every level of
+   every dimension, which is heavy priming on exactly what is being asked.
+   Re-adding a category is one line here — `id` becomes image_id in the sheet,
+   so keep the ids stable. */
 const RESEARCHER_IMAGES = [
-  { id: "Obj_1",      category: "Object",              label: "Object",              src: "images/Obj_1.jpg" },
   { id: "Obj_Text_1", category: "Object with text",    label: "Object with text",    src: "images/Obj_Text_1.jpg" },
   { id: "People_1",   category: "People",              label: "People",              src: "images/People_1.jpg" },
-  { id: "Pets_1",     category: "Pets",                label: "Pets",                src: "images/Pets_1.jpg" },
-  { id: "Sur_Ext_1",  category: "Surroundings, outdoors", label: "Surroundings, outdoors", src: "images/Sur_Ext_1.jpg" },
-  { id: "Sur_Int_1",  category: "Surroundings, indoors",  label: "Surroundings, indoors",  src: "images/Sur_Int_1.jpg" }
+  { id: "Sur_Ext_1",  category: "Surroundings, outdoors", label: "Surroundings, outdoors", src: "images/Sur_Ext_1.jpg" }
 ];
 
 /* Study images already live in your repo, so their bytes are not re-uploaded
@@ -898,9 +1000,9 @@ const DIMENSIONS = [
     label: "Confidence",
     hint: "Confidence refers to how certain the description sounds about what it reports.",
     levels: [
-      { key:"assertive", label:"Assertive", promptLabel:"Assertive",
+      { key:"assertive", label:"Assertive", promptLabel:"Assertive", short:"assertive",
         blurb:"Directly states what the AI model thinks is in the image." },
-      { key:"hedging", label:"Hedging", promptLabel:"Hedging",
+      { key:"hedging", label:"Hedging", promptLabel:"Hedging", short:"hedging",
         blurb:"States things in a more uncertain way." }
     ]
   },
@@ -909,11 +1011,11 @@ const DIMENSIONS = [
     label: "Specificity",
     hint: "Specificity refers to how much detail the description includes.",
     levels: [
-      { key:"minimal", label:"Minimal", promptLabel:"Minimal",
+      { key:"minimal", label:"Minimal", promptLabel:"Minimal", short:"minimally detailed",
         blurb:"Mentions only the main subject and general layout." },
-      { key:"moderate", label:"Moderate", promptLabel:"Moderate",
+      { key:"moderate", label:"Moderate", promptLabel:"Moderate", short:"moderately detailed",
         blurb:"Mentions the main subject, general layout, key details, and background information." },
-      { key:"maximal", label:"Maximal", promptLabel:"Maximal",
+      { key:"maximal", label:"Maximal", promptLabel:"Maximal", short:"maximally detailed",
         blurb:"Provides details about all notable attributes." }
     ]
   },
@@ -922,9 +1024,9 @@ const DIMENSIONS = [
     label: "Formality",
     hint: "Formality refers to the tone and word choice of the description.",
     levels: [
-      { key:"professional", label:"Professional", promptLabel:"Professional",
+      { key:"professional", label:"Professional", promptLabel:"Professional", short:"professional",
         blurb:"Uses neutral, polished language." },
-      { key:"conversational", label:"Conversational", promptLabel:"Conversational",
+      { key:"conversational", label:"Conversational", promptLabel:"Conversational", short:"conversational",
         blurb:"Sounds more casual, like a friend describing what they see." }
     ]
   },
@@ -933,11 +1035,11 @@ const DIMENSIONS = [
     label: "Subjectivity",
     hint: "Subjectivity refers to how much interpretation or judgment the description includes.",
     levels: [
-      { key:"objective", label:"Objective", promptLabel:"Objective",
+      { key:"objective", label:"Objective", promptLabel:"Objective", short:"objective",
         blurb:"Reports only what is observable in the photo." },
-      { key:"interpretive", label:"Interpretive", promptLabel:"Interpretive",
+      { key:"interpretive", label:"Interpretive", promptLabel:"Interpretive", short:"interpretive",
         blurb:"Interprets what the mood or activity might be." },
-      { key:"opinionated", label:"Opinionated", promptLabel:"Opinionated",
+      { key:"opinionated", label:"Opinionated", promptLabel:"Opinionated", short:"opinionated",
         blurb:"Adds aesthetic judgments." }
     ]
   }
@@ -1119,11 +1221,26 @@ function buildUserMessage(style){
   );
 }
 
+/* The four levels, named without their dimensions: "assertive, moderately
+   detailed, professional, objective".
+
+   Dropping the dimension names is safe because all ten level names are unique
+   across the four dimensions, so a level identifies its dimension on its own —
+   and it maps straight onto the radio the participant would change, which is
+   the only reason they would want the dimension anyway. The wording is the
+   survey's own: SYSTEM_PROMPT labels its reference cell "Assertive, Moderately
+   Detailed, Professional, and Objective", so part two names a cell the way part
+   one did. `short` rather than `label` because the specificity levels need
+   "detailed" to stand alone — "moderate" by itself answers a question the
+   listener has not been asked.
+
+   This line is read after EVERY description, so twelve words of scaffolding
+   around four words of content was most of what a participant heard. */
 function styleSentence(style){
   return DIMENSIONS.map(d => {
     const lvl = d.levels.find(l => l.key === style[d.key]);
-    return d.label.toLowerCase() + ": " + lvl.label.toLowerCase();
-  }).join("; ") + ".";
+    return lvl.short || lvl.label.toLowerCase();
+  }).join(", ");
 }
 function isBaselineStyle(style){ return sameStyle(style, DEFAULT_STYLE); }
 function sameStyle(a,b){ return DIMENSIONS.every(d => a[d.key] === b[d.key]); }
@@ -1167,6 +1284,9 @@ const imageKey   = (sid,iid) => "descstyle:image:" + sid + ":" + iid;
 
 const Sync = {
   queue: [],
+  parked: [],            // records the collector refused SYNC_MAX_ATTEMPTS times
+  attempts: {},          // recordId -> failures so far
+  beaconed: {},          // recordId -> already sent by the pagehide beacon
   sending: false,
   sent: 0,
   unconfirmed: 0,
@@ -1192,6 +1312,34 @@ const Sync = {
       const rec = this.queue[0];
       const outcome = await this.send(rec);
       if (outcome === "retry"){
+        const n = (this.attempts[rec.recordId] = (this.attempts[rec.recordId] || 0) + 1);
+        if (n >= CONFIG.SYNC_MAX_ATTEMPTS){
+          /* Park it and carry on. The queue is strictly FIFO and serial, so a
+             record the collector will never accept used to block every record
+             behind it for the rest of the session — one oversized photo could
+             cost you every description that followed it. Parking loses the one
+             row; blocking loses all of them. */
+          this.parked.push(this.queue.shift());
+          delete this.attempts[rec.recordId];
+          console.warn("[DescStyle] Parked a record the collector kept refusing:",
+            rec.type, rec.recordId);
+          /* Reported through the queue itself, so it lands in the sheet if the
+             collector is merely slow rather than broken. */
+          this.queue.push(Object.assign({
+            type: "event", eventType: "sync_parked",
+            detail: "gave up on a " + rec.type + " record after " +
+                    CONFIG.SYNC_MAX_ATTEMPTS + " attempts",
+            parkedRecordId: rec.recordId
+          }, {
+            recordId: uid("r"), sessionId: state.sessionId,
+            participantId: state.participantId,
+            clientTime: new Date().toISOString(),
+            secret: CONFIG.SHARED_SECRET || undefined
+          }));
+          this.failed = false;
+          updateSyncPill();
+          continue;
+        }
         this.sending = false;
         this.failed = true;
         updateSyncPill();
@@ -1199,6 +1347,7 @@ const Sync = {
         return;
       }
       this.queue.shift();
+      delete this.attempts[rec.recordId];
       this.sent++;
       if (outcome === "unconfirmed") this.unconfirmed++;
       this.failed = false;
@@ -1208,16 +1357,20 @@ const Sync = {
     updateSyncPill();
   },
 
-  /* Text/plain avoids a CORS preflight, which Apps Script does not answer. */
+  /* Text/plain avoids a CORS preflight, which Apps Script does not answer.
+     Every request is time-boxed: an unsettled fetch here stalls the whole
+     queue, because flush awaits this serially. */
   async send(rec){
+    const ms = rec.type === "photo" ? CONFIG.SYNC_TIMEOUT_PHOTO_MS : CONFIG.SYNC_TIMEOUT_MS;
+    const payload = JSON.stringify(rec);
     for (let attempt = 0; attempt < 2; attempt++){
       try {
-        const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+        const res = await fetchWithTimeout(CONFIG.APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify(rec),
+          body: payload,
           redirect: "follow"
-        });
+        }, ms);
         const body = await res.json();
         if (body && body.ok) return "ok";
         return "retry";
@@ -1226,11 +1379,11 @@ const Sync = {
            Resend opaquely: a duplicate is recoverable via record_id, a
            missing row is not. */
         try {
-          await fetch(CONFIG.APPS_SCRIPT_URL, {
+          await fetchWithTimeout(CONFIG.APPS_SCRIPT_URL, {
             method: "POST", mode: "no-cors",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(rec)
-          });
+            body: payload
+          }, ms);
           return "unconfirmed";
         } catch(e2){ /* fall through and retry once */ }
       }
@@ -1250,7 +1403,16 @@ const state = {
   descriptions: [],    // full records, every version
   events: [],
   currentImage: null,  // {imageId, base64, dataUrl, ...}
-  baseStyle: Object.assign({}, DEFAULT_STYLE),   // the participant's own starting settings
+  /* The participant's own DEFAULT style, shown as "my default style settings".
+     Not to be confused with DEFAULT_STYLE, which is part one's baseline cell
+     (assertive / moderate / professional / objective) and is only a seed value
+     here — the participant overwrites it on the setup screen, and
+     is_baseline_style is what records whether they happened to land on it.
+     The internal names (baseStyle, matchesParticipantBase, the
+     matches_participant_base column) are deliberately NOT renamed: they are a
+     live sheet column and an Apps Script mapping, and the tab would have to be
+     rebuilt for a word change nobody sees. */
+  baseStyle: Object.assign({}, DEFAULT_STYLE),
   pendingBaseStyle: {},   // starts empty: nothing preselected
   currentStyle: Object.assign({}, DEFAULT_STYLE),
   lastGeneratedStyle: null,
@@ -1261,14 +1423,44 @@ const state = {
   awaitingDescribe: false,       // a photo is staged but not yet sent
   generating: false,
   warnedSync: false,
+  warnedModel: false,            // the alias/snapshot mismatch has been reported once
   collectorWarned: false,        // the continue gate has reported a bad collector once
-  pidFromLink: false
+  pidFromLink: false,
+  linkPid: "",                   // the id the link supplied, before any edit
+  baseStyleSet: false,           // the four default settings have been committed
+  styleEditingAgain: false,      // the default style is being revisited mid-session
+  styleEditFrom: null,           // screen to return to if that revisit is cancelled
+  lastModeFreeform: null,        // null until the first updateModeUI; see syncControlsDisclosure
+  ending: false                  // the end-of-session export is in flight
 };
 
 const $ = id => document.getElementById(id);
 const uid = p => p + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,7);
 
-function announce(msg){ const l = $("live"); l.textContent = ""; setTimeout(() => { l.textContent = msg; }, 60); }
+/* 60ms was too tight: some screen readers coalesce the clear and the write into
+   one mutation and say nothing. 150ms is still imperceptible and survives it.
+
+   The text is also cleared again afterwards. #live is visually hidden but it is
+   NOT hidden from the accessibility tree, so text left in it stays a swipe stop
+   for the rest of the session — a participant returning to the top of the page
+   walks past the last thing that was announced, out of context, every time. */
+let liveWriteTimer = null, liveClearTimer = null;
+function announce(msg){
+  const l = $("live");
+  /* Both timers, not just the clear one. Two announce calls inside 150ms used
+     to leave two pending writes: the first landed, was announced, and was then
+     overwritten by the second — so the participant heard the start of a message
+     that was never meant for them. */
+  clearTimeout(liveWriteTimer);
+  clearTimeout(liveClearTimer);
+  l.textContent = "";
+  liveWriteTimer = setTimeout(() => {
+    l.textContent = msg;
+    /* Long enough for the slowest speech rate to finish; clearing early cuts
+       the announcement off on some builds. */
+    liveClearTimer = setTimeout(() => { if (l.textContent === msg) l.textContent = ""; }, 30000);
+  }, 150);
+}
 function showError(msg){ $("errorBox").textContent = msg || ""; }
 function clearError(){ $("errorBox").textContent = ""; }
 
@@ -1333,10 +1525,23 @@ function updateSyncPill(){
     retry.hidden = true;
     return;
   }
+  /* Parked records are the one outcome that is real data loss, so they outrank
+     "Saved" no matter how healthy the queue looks afterwards. */
+  if (Sync.parked.length){
+    pill.textContent = Sync.parked.length + " not saved";
+    pill.classList.add("bad");
+    retry.hidden = true;
+    $("syncNote").textContent =
+      "Some records could not be saved to the study database and have been skipped. Tell your interviewer.";
+    return;
+  }
   pill.textContent = Sync.unconfirmed ? "Saved (" + Sync.unconfirmed + " unconfirmed)" : "Saved";
   pill.classList.add("ok");
   retry.hidden = true;
-  if (state.warnedSync) $("syncNote").textContent = "";
+  /* Recovery is announced, not just un-warned. Being told the database was
+     unreachable and then never being told otherwise leaves the participant
+     carrying a worry they cannot resolve for the rest of the session. */
+  if (state.warnedSync) $("syncNote").textContent = "Records are reaching the study database again.";
   state.warnedSync = false;
 }
 
@@ -1344,10 +1549,38 @@ function updateSyncPill(){
    SCREENS
    ================================================================= */
 const SCREENS = ["setup","style","images","capture","freeform","result","done"];
-/* Moving focus in the same frame as a visibility change is dropped by some
-   VoiceOver and TalkBack builds — the element is not in the accessibility tree
-   yet when focus() runs. Wait for the browser to paint, then confirm it landed
-   and retry once if it did not. */
+/* Three helpers around the same underlying fact: a change made in the same
+   frame as a visibility change is made against an accessibility tree that has
+   not been rebuilt yet, so screen readers miss it. focusSoon moves focus,
+   writeSoon fills a live region, focusAfterAlert sequences the two when an
+   alert has to be heard before focus lands. */
+
+/* Write into a live region on the next paint rather than in the frame that
+   revealed it: the region is not in the tree yet, so the mutation that should
+   trigger the announcement happens where nothing is listening. */
+function writeSoon(el, text){
+  if (!el) return;
+  const go = () => { if (el.textContent !== text) el.textContent = text; };
+  if (typeof requestAnimationFrame === "function"){
+    requestAnimationFrame(() => requestAnimationFrame(go));
+  } else {
+    setTimeout(go, 40);
+  }
+}
+
+/* Validation errors land in a role="alert" region, which speaks immediately —
+   and then the code moves focus to the offending control, which INTERRUPTS it.
+   On VoiceOver the participant typically hears two or three words of "Please
+   choose an option for: Confidence, Specificity..." before the focus
+   announcement cuts across it, which is exactly the information they needed.
+   Let the alert get started, then move focus. */
+function focusAfterAlert(el, ms){
+  if (!el) return;
+  setTimeout(() => focusSoon(el), ms || 1200);
+}
+
+/* Move focus once the browser has painted, then confirm it landed and retry
+   once if it did not. */
 function focusSoon(el, opts){
   if (!el) return;
   const go = () => {
@@ -1385,6 +1618,13 @@ function scrollDescriptionIntoView(){
 }
 
 function showScreen(name, focusId){
+  /* #errorBox sits outside <main>, above every screen, and role="alert" makes
+     it a swipe stop as long as it holds text. It used to survive navigation, so
+     a participant who failed to load one study image met a red alert about it
+     on every screen for the rest of the session. Errors that must outlive the
+     move are shown AFTER the screen change, not before — see the handleFile
+     catch block. */
+  clearError();
   SCREENS.forEach(s => { $("screen-" + s).hidden = (s !== name); });
   focusSoon($(focusId));
 }
@@ -1394,9 +1634,15 @@ function showScreen(name, focusId){
    progress indicator is worse than none for someone using it to orient. */
 function setStepLabels(){
   const total = RESEARCHER_IMAGES.length ? 3 : 2;
-  $("stepStyle").textContent = "Step 1 of " + total;
-  $("stepImages").textContent = "Step 2 of " + total;
-  $("stepCapture").textContent = "Step " + total + " of " + total;
+  const set = (visible, vh, text) => {
+    $(visible).textContent = text;
+    /* Trailing full stop and space so the screen reader pauses between the step
+       and the heading rather than running them together. */
+    $(vh).textContent = text + ". ";
+  };
+  set("stepStyle",   "stepStyleVH",   "Step 1 of " + total);
+  set("stepImages",  "stepImagesVH",  "Step 2 of " + total);
+  set("stepCapture", "stepCaptureVH", "Step " + total + " of " + total);
 }
 setStepLabels();
 
@@ -1596,7 +1842,11 @@ async function handleFile(file, source, researcher){
     logEvent("image_captured", { imageId, source, width:img.width, height:img.height });
     Sync.push({
       type: "photo", imageId, capturedAt: rec.capturedAt, source,
-      width: img.width, height: img.height,
+      /* rec.width/rec.height, NOT img.width/img.height. img.* is the resized
+         copy sent to the model, so the sheet's width/height columns were
+         duplicating modelWidth/modelHeight and the original photo's real
+         dimensions never left the device. */
+      width: rec.width, height: rec.height,
       researcherImageId: rec.researcherImageId,
       researcherCategory: rec.researcherCategory,
       mediaType: rec.mediaType,
@@ -1619,7 +1869,7 @@ async function handleFile(file, source, researcher){
     state.lastGeneratedStyle = null;
     syncControlsFromState();
     renderHistory();
-    $("backToDescWrap").hidden = false;
+    $("backToDesc").hidden = false;
 
     /* Stop here. The photo is staged and visible, nothing has been written,
        and the interviewer can ask what the participant hopes to learn from it.
@@ -1629,12 +1879,15 @@ async function handleFile(file, source, researcher){
   } catch(err){
     setBusy(false);
     restoreCurrentImageView();
-    showError("That photo couldn't be prepared. " + (err.message || "Please try taking it again."));
-    announce("The photo couldn't be prepared.");
-    /* Back to where a photo comes from, rather than stranding them on a result
-       screen for a photo that does not exist. */
+    /* Navigate BEFORE showing the error. showScreen clears #errorBox on the way
+       through — otherwise an error would follow the participant around the
+       session — so an error raised first would be wiped by the move that is
+       part of handling it. Back to where a photo comes from, rather than
+       stranding them on a result screen for a photo that does not exist. */
     if (researcher && RESEARCHER_IMAGES.length) showScreen("images", "imagesH");
     else showScreen("capture", "captureH");
+    showError("That photo couldn't be prepared. " + (err.message || "Please try taking it again."));
+    announce("The photo couldn't be prepared.");
   }
 }
 
@@ -1651,8 +1904,12 @@ function setAwaiting(on){
      state on a control the participant will meet again on the next photo. */
   $("describeBtn").setAttribute("aria-disabled", "false");
   if (on){
+    /* Focus lands on the button, which announces its own name. The live region
+       used to repeat that name back, so the participant heard "Describe this
+       photo" twice in a row from two different sources. Say only what focus
+       cannot: that the photo arrived and nothing has been written yet. */
     focusSoon($("describeBtn"));
-    announce("Photo ready. Choose “Describe this photo” when you want a description.");
+    announce("Your photo is ready. Nothing has been described yet.");
   }
 }
 
@@ -1667,8 +1924,18 @@ function busyBlocked(){
 
 function setBusy(on, msg){
   state.generating = on;
-  $("statusRow").hidden = !on;
-  if (msg) $("statusText").textContent = msg;
+  /* Unhide first, write on the next paint. A live region that is revealed and
+     filled in the same frame is not in the accessibility tree when the text
+     arrives, so the announcement is silently dropped — the same trap
+     showSetupNotice already works around. Without this the participant hears
+     nothing at all between pressing "Describe this photo" and the description
+     landing, which on a slow request is thirty seconds of silence. */
+  if (!on){
+    $("statusRow").hidden = true;
+  } else {
+    $("statusRow").hidden = false;
+    if (msg) writeSoon($("statusText"), msg);
+  }
   /* "Describe this photo" hides itself the moment it is pressed, which drops
      the VoiceOver cursor to the top of the document. Put focus on the screen
      heading instead, so the participant keeps their place and hears the
@@ -1676,15 +1943,14 @@ function setBusy(on, msg){
   if (on){
     const ae = document.activeElement;
     if (!ae || ae === document.body || (ae.closest && ae.closest("[hidden]"))){
-      $("resultH").focus();
+      focusSoon($("resultH"));
     }
   }
-  $("sheet").setAttribute("aria-busy", on ? "true" : "false");
   /* aria-disabled, not the disabled property. On iOS, disabling the button the
      participant just activated destroys VoiceOver focus and dumps the cursor
      back to the top of the page. This keeps the button focusable and announced
      as dimmed; the handlers below refuse to run while busy. */
-  ["regenBtn","resetBtn","preferBtn","newPhotoBtn","toFreeformBtn",
+  ["regenBtn","rerollBtn","resetBtn","preferBtn","newPhotoBtn","toFreeformBtn",
    "regenFreeformBtn","editFreeformBtn"].forEach(id => {
     const el = $(id);
     if (el) el.setAttribute("aria-disabled", on ? "true" : "false");
@@ -1713,7 +1979,7 @@ function extractText(choice){
 
 /* An empty completion has several distinct causes and they need different
    fixes, so name the one that actually happened rather than saying "empty". */
-function describeEmpty(data, choice){
+function describeEmpty(data, choice, budget){
   /* A collector acknowledgement where a completion should be means doPost
      never reached handleProxy_ — the deployed web app predates the proxy, so
      the model request was filed as a data record instead. This is the single
@@ -1737,7 +2003,7 @@ function describeEmpty(data, choice){
   if (refusal) return "The model declined to describe this image: " + refusal;
   if (finish === "content_filter") return "The image was blocked by the model's content filter.";
   if (finish === "length" || (reasoning && usage.completion_tokens && reasoning >= usage.completion_tokens - 2)){
-    return "The model spent its whole " + CONFIG.MAX_OUTPUT_TOKENS + "-token budget on reasoning (" +
+    return "The model spent its whole " + budget + "-token budget on reasoning (" +
            reasoning + " reasoning tokens) and never got to the description. " +
            "Raise MAX_OUTPUT_TOKENS, or set REASONING_EFFORT to \"low\" — " +
            "though note that departs from the survey pipeline, which sent none.";
@@ -1933,7 +2199,7 @@ async function generate(isFirst){
     let text = extractText(choice);
     text = text.replace(/^```[a-z]*\s*/i, "").replace(/```$/,"").trim();
 
-    if (!text) throw new Error(describeEmpty(data, choice));
+    if (!text) throw new Error(describeEmpty(data, choice, body.max_completion_tokens));
 
     const record = {
       descriptionId,
@@ -2011,6 +2277,24 @@ async function generate(isFirst){
       finishReason: record.finishReason,
       promptVersion: record.promptVersion,
       promptHash: record.promptHash,
+      /* Generation provenance. These were held only in state.descriptions,
+         which reaches Drive solely through window.storage — absent outside an
+         artifact host, in which case the whole local record lives in an
+         in-memory Map and dies with the tab. Since the export is built from
+         the sheet, anything not pushed here is not in the study data. For a
+         study whose design rests on matching part one's generation config,
+         the fingerprint and the reasoning-token count are exactly the fields
+         you would want when a result looks wrong months later. */
+      responseId: record.responseId,
+      systemFingerprint: record.systemFingerprint,
+      seed: record.seed === null ? "(omitted)" : record.seed,
+      reasoningEffort: record.reasoningEffort === null ? "(omitted)" : record.reasoningEffort,
+      verbosity: record.verbosity === null ? "(omitted)" : record.verbosity,
+      maxOutputTokens: body.max_completion_tokens,
+      promptTokens: (record.usage && record.usage.prompt_tokens) || "",
+      completionTokens: (record.usage && record.usage.completion_tokens) || "",
+      reasoningTokens: (record.usage && record.usage.completion_tokens_details &&
+                        record.usage.completion_tokens_details.reasoning_tokens) || "",
       userMessage, text
     });
     await saveNow();
@@ -2072,13 +2356,13 @@ function versionById(id){
 }
 function renderedRecord(){ return versionById(state.renderedDescriptionId); }
 
-/* "Your starting style" is a claim about the SETTINGS, so it is keyed off the
+/* "Your default style" is a claim about the SETTINGS, so it is keyed off the
    settings — not off being the first version. Reset the four options back and
    regenerate and version 3 earns the label just as version 1 did. */
 function versionTitle(rec){
   return "Version " + rec.generationIndex +
     (rec.styleMode === "freeform" ? " — your own words"
-      : (rec.matchesParticipantBase ? " — your starting style" : "")) +
+      : (rec.matchesParticipantBase ? " — your default style" : "")) +
     (rec.preferred ? " (the description you prefer)" : "");
 }
 
@@ -2090,7 +2374,11 @@ function withFocusRestored(fn){
   fn();
   if (id){
     const el = document.getElementById(id);
-    if (el) el.focus();
+    /* focusSoon, not focus(): the element was just destroyed and rebuilt, and a
+       focus call in the same frame as the rebuild is dropped by some VoiceOver
+       and TalkBack builds — which is the exact failure this function exists to
+       prevent. */
+    if (el) focusSoon(el);
   }
 }
 
@@ -2166,7 +2454,7 @@ function setPreferred(rec){
            " is now the description you prefer. " +
            (rec.styleMode === "freeform"
               ? "Written from your own words."
-              : "Written with " + rec.styleSentence));
+              : "Style: " + rec.styleSentence + "."));
 }
 
 function updateReadBtn(){
@@ -2248,7 +2536,7 @@ function renderDescription(rec){
   $("descBody").textContent = rec.text;
   $("styleSentence").textContent = rec.styleMode === "freeform"
     ? "Written from your own description of the style you want."
-    : "Written with " + rec.styleSentence;
+    : "Style: " + rec.styleSentence + ".";
   updateReadBtn();
   updatePreferBtn();
 }
@@ -2257,7 +2545,10 @@ function renderHistory(){
   const earlier = currentVersions()
     .filter(r => r.descriptionId !== state.renderedDescriptionId)
     .reverse();
-  $("historySummary").textContent = "Earlier versions of this description (" + earlier.length + ")";
+  /* "All versions", not "Show all versions" — same reasoning as
+     syncControlsDisclosure: the disclosure announces its own state, so naming
+     the action in the label says it twice. The count is what the label adds. */
+  $("historySummary").textContent = "All versions (" + earlier.length + ")";
   const host = $("historyList");
   host.textContent = "";
   if (!earlier.length){
@@ -2277,7 +2568,7 @@ function renderHistory(){
     const s = document.createElement("p");
     s.className = "muted version-style";
     s.textContent = rec.styleMode === "freeform"
-      ? "Written from your own words." : rec.styleSentence;
+      ? "Written from your own words." : "Style: " + rec.styleSentence + ".";
 
     const t = document.createElement("p");
     t.className = "version-text"; t.textContent = rec.text;
@@ -2315,26 +2606,36 @@ function renderHistory(){
 function setNote(text){
   const note = $("pendingNote"), txt = $("pendingText");
   if (!text){ note.hidden = true; if (txt.textContent) txt.textContent = ""; return; }
-  if (txt.textContent !== text) txt.textContent = text;
+  /* Order matters: the old code wrote the text while the box was still hidden,
+     so the mutation happened outside the accessibility tree and unhiding a
+     region that already holds its text announces nothing. Reveal, then write on
+     the next paint. */
   note.hidden = false;
+  writeSoon(txt, text);
 }
 
 /* Only forced on a mode CHANGE, so a participant who collapses the settings
    themselves while using the four dimensions is not overridden the next time
-   anything re-renders. */
+   anything re-renders.
+
+   The label deliberately does NOT change with the state. <summary> is a native
+   disclosure, so a screen reader already announces "button, collapsed" or
+   "button, expanded" — a label that also said "Show …" stated the same thing a
+   second time and implied the press would expand when the announcement had
+   just covered that. It also made the control impossible to find again by the
+   name it had a moment ago, which is how rotor users navigate. The summary
+   names the CONTENT; the element carries the state. */
 function syncControlsDisclosure(freeform){
   if (state.lastModeFreeform === freeform) return;
   state.lastModeFreeform = freeform;
   $("controlsDetails").open = !freeform;
-  $("controlsSummary").textContent = freeform
-    ? "Show four style settings" : "Four style settings";
 }
 
 function updateModeUI(){
   /* Keyed off the description actually ON SCREEN, not off state.styleMode.
      styleMode only says which prompt the NEXT generation will use, and the two
      drift apart the moment something changes the mode without regenerating —
-     which "Go back to my starting style" does. Reading the displayed record
+     which "Go back to my default style" does. Reading the displayed record
      instead means the banner and every button label describe what the
      participant is actually looking at. */
   const shown = renderedRecord();
@@ -2343,24 +2644,49 @@ function updateModeUI(){
   $("styleIntro").hidden = freeform;
   syncControlsDisclosure(freeform);
 
+  /* Both actions appear only when they would DO something. An action that is
+     always on screen but is a no-op most of the time is noise a screen reader
+     participant swipes past on every pass, and it invites a press that changes
+     nothing — which reads as the app being broken.
+       - "Go back to my default style" does nothing unless the settings have
+         moved off the participant's own starting cell.
+       - "Write a new description with these settings" does nothing new unless
+         the settings differ from the ones that produced what is on screen.
+     In free-text mode the rewrite button IS meaningful whatever the radios say,
+     because the description on screen did not come from them at all. */
+  const offBase = !sameStyle(state.currentStyle, state.baseStyle);
+  $("resetBtn").hidden = !offBase;
+
   if (freeform){
-    $("freeformEcho").textContent = state.freeformText || "";
+    /* The description on screen came from the participant's own words, so
+       "another one with these settings" would not be another of anything they
+       are looking at. The mode box above offers the free-text re-roll. */
+    $("rerollBtn").hidden = true;
+    $("freeformEcho").textContent = (shown && shown.freeformText) || state.freeformText || "";
     /* No note here: the heading of the box directly above already says "This
        description came from your own words", and repeating it is one more
        thing to swipe past for no new information. */
     setNote("");
+    $("regenBtn").hidden = false;
     $("regenBtn").textContent = "Write a description with these four settings instead";
     return;
   }
 
-  const changed = state.lastGeneratedStyle && !sameStyle(state.currentStyle, state.lastGeneratedStyle);
-  if (changed){
-    setNote("You've changed the settings. The description above hasn't been rewritten yet.");
-    $("regenBtn").textContent = "Write a new description with these settings";
-  } else {
-    setNote("");
-    $("regenBtn").textContent = "Write the description again with these settings";
-  }
+  /* No lastGeneratedStyle means nothing has been generated from the radios for
+     this photo yet, so the rewrite is genuinely available. */
+  const changed = !state.lastGeneratedStyle || !sameStyle(state.currentStyle, state.lastGeneratedStyle);
+  $("regenBtn").hidden = !changed;
+  /* Exactly one of the two is on screen at any moment: change the settings and
+     you get "write a new description", leave them alone and you get "write
+     another". Nothing is sent with a seed, so another really is another —
+     same cell, different wording. */
+  $("rerollBtn").hidden = changed;
+  /* One label now, not two: the button is only ever on screen in the changed
+     case, so the "again with these settings" wording was unreachable. */
+  $("regenBtn").textContent = "Write a new description with these settings";
+  setNote(changed
+    ? "You've changed the settings. The description above hasn't been rewritten yet."
+    : "");
 }
 
 /* ---------- style controls ---------- */
@@ -2535,7 +2861,7 @@ window.addEventListener("pageshow", e => {
 function startSession(pid, source){
   if (!pid){
     showError("Enter the participant ID, then choose “Start session”.");
-    $("pid").focus();
+    focusAfterAlert($("pid"));
     return;
   }
   if (!usingCollectorProxy() && !CONFIG.PROXY_URL){
@@ -2543,7 +2869,7 @@ function startSession(pid, source){
     if (!k){
       showError("This session needs an OpenAI API key. Open “Researcher setup: API key” and enter one.");
       $("keyBlock").open = true;
-      $("apikey").focus();
+      focusAfterAlert($("apikey"));
       return;
     }
     API_KEY = k;
@@ -2573,10 +2899,12 @@ function startSession(pid, source){
     model: CONFIG.MODEL,
     reasoningEffort: CONFIG.REASONING_EFFORT === null ? "(omitted)" : CONFIG.REASONING_EFFORT,
     maxOutputTokens: CONFIG.MAX_OUTPUT_TOKENS,
+    maxOutputTokensOwnPhoto: CONFIG.MAX_OUTPUT_TOKENS_OWN_PHOTO,
     seed: CONFIG.SEED === null ? "(omitted)" : CONFIG.SEED,
     imageDetail: CONFIG.IMAGE_DETAIL === null ? "(omitted)" : CONFIG.IMAGE_DETAIL,
     freeformMaxWords: CONFIG.FREEFORM_MAX_WORDS
   });
+  flushPreSessionSettings();
   saveNow();
   showScreen("style", "styleH");
   announce("Session started for participant " + pid + ".");
@@ -2666,6 +2994,9 @@ function commitBaseStyle(chosen){
   state.baseStyleSet = true;
   if (!state.currentImage) state.currentStyle = Object.assign({}, chosen);
 
+  /* Distinguished in the sheet: a mid-session change is an answer to the
+     protocol's "adjustments for all images?" question, and when it happens
+     relative to the tasks is the finding. */
   const type = first ? "style_setup" : "style_setup_changed";
   logEvent(type, { style: chosen });
   Sync.push({
@@ -2675,6 +3006,20 @@ function commitBaseStyle(chosen){
     detail: isBaselineStyle(chosen) ? "identical to the part-one baseline cell" : ""
   });
   saveNow();
+
+  if (state.styleEditingAgain){
+    state.styleEditingAgain = false;
+    state.styleEditFrom = null;
+    /* Straight into the own-photos task. The four radios for the LAST photo are
+       left untouched — that description was written with them, and silently
+       moving them would make the style line under it wrong — but the next photo
+       starts from the new settings, which is what "for all images" meant. */
+    updateModeUI();
+    showScreen("capture", "captureH");
+    announce("Default settings saved: " + styleSentence(state.baseStyle) +
+             ". Now you can take your own photos.");
+    return;
+  }
   goToTask();
 }
 
@@ -2686,7 +3031,7 @@ $("saveStyleBtn").addEventListener("click", () => {
        well would speak it twice. */
     $("setupError").textContent = "Please choose an option for: " + names + ".";
     const first = $("set-" + missing[0].key + "-" + LEVEL_ORDER[missing[0].key][0]);
-    if (first) first.focus();
+    if (first) focusAfterAlert(first);
     return;
   }
   $("setupError").textContent = "";
@@ -2708,19 +3053,63 @@ $("saveStyleBtn").addEventListener("click", () => {
   commitBaseStyle(Object.assign({}, state.pendingBaseStyle));
 });
 
-$("editStyleBtn").addEventListener("click", () => {
+/* Shared by both ways in. The default style is only ever revisited BETWEEN the
+   two prototype tasks — after the study images, before the participant's own
+   photos — so saving a change always leads into the camera screen rather than
+   back where they came from. goToTask() would send them to the study-image
+   picker they have just finished with. */
+function openStyleEditor(from){
+  state.styleEditingAgain = true;
+  /* Cancel returns where they came from; Save goes on to the camera. The two
+     differ on purpose — leaving without changing anything should put the
+     participant back exactly where they were, whereas saving is the deliberate
+     move between the two tasks. */
+  state.styleEditFrom = from;
   state.pendingBaseStyle = Object.assign({}, state.baseStyle);
   DIMENSIONS.forEach(dim => {
     markChecked($("set-" + dim.key + "-" + state.baseStyle[dim.key]));
   });
+  /* Step numbering belongs to the first pass through the session. On a return
+     visit "Step 1 of 3" is a lie about where the participant is, so both the
+     visible line and the hidden prefix inside the h1 are dropped. */
+  $("stepStyle").hidden = true;
+  $("stepStyleVH").textContent = "";
+  $("styleHeading").textContent = "Change your default style settings";
+  $("styleIntroSetup").hidden = true;
+  $("styleIntroAgain").hidden = false;
+  $("styleWhoAgain").hidden = false;
+  $("cancelStyleBtn").hidden = false;
+  $("setupError").textContent = "";
+  showSetupNotice("");
   showScreen("style", "styleH");
+}
+
+$("editStyleBtn").addEventListener("click", () => openStyleEditor("capture"));
+
+$("editStyleFromResult").addEventListener("click", () => {
+  if (busyBlocked()) return;
+  openStyleEditor("result");
+});
+
+$("cancelStyleBtn").addEventListener("click", () => {
+  state.styleEditingAgain = false;
+  /* pendingBaseStyle is scratch until commitBaseStyle copies it into baseStyle,
+     so there is nothing to roll back — leaving IS the discard. */
+  state.pendingBaseStyle = Object.assign({}, state.baseStyle);
+  $("setupError").textContent = "";
+  showSetupNotice("");
+  const from = state.styleEditFrom === "result" && state.currentImage ? "result" : "capture";
+  state.styleEditFrom = null;
+  showScreen(from, from === "result" ? "resultH" : "captureH");
+  announce("Nothing changed. Your default style is still " +
+           styleSentence(state.baseStyle) + ".");
 });
 
 function buildImageList(){
   const host = $("imageList");
   host.textContent = "";
   if (!RESEARCHER_IMAGES.length) return;
-  $("studyPickWrap").hidden = false;
+  $("toStudyImages").hidden = false;
 
   RESEARCHER_IMAGES.forEach(img => {
     const b = document.createElement("button");
@@ -2795,10 +3184,10 @@ $("freeformBackBtn").addEventListener("click", () => showScreen("result", "resul
 $("freeformGoBtn").addEventListener("click", () => {
   if (busyBlocked()) return;
   const text = $("freeformText").value.trim();
-  if (text.length < 10){
+  if (text.length < 3){
     $("freeformError").textContent =
       "Say a little more about how you'd like descriptions written, then choose “Write a description this way”.";
-    $("freeformText").focus();
+    focusAfterAlert($("freeformText"));
     return;
   }
   $("freeformError").textContent = "";
@@ -2832,6 +3221,20 @@ $("regenBtn").addEventListener("click", () => {
   state.styleMode = "dimensions"; generate(false);
 });
 
+/* Same call as the rewrite; only the reason differs, so the two are logged
+   apart. How often a participant asks to hear the same cell again — and which
+   cells prompt it — is a finding, not noise. */
+$("rerollBtn").addEventListener("click", () => {
+  if (busyBlocked()) return;
+  state.styleMode = "dimensions";
+  Sync.push({ type: "event", eventType: "style_rerolled",
+    imageId: state.currentImage ? state.currentImage.imageId : null,
+    styleAfter: Object.assign({}, state.currentStyle),
+    detail: "asked for another description of the same cell" });
+  logEvent("style_rerolled", { imageId: state.currentImage ? state.currentImage.imageId : null });
+  generate(false);
+});
+
 $("resetBtn").addEventListener("click", () => {
   if (busyBlocked()) return;
   /* Resets the four settings only. It deliberately does NOT change styleMode:
@@ -2839,12 +3242,21 @@ $("resetBtn").addEventListener("click", () => {
      whatever produced it, and updateModeUI keeps saying so. */
   state.currentStyle = Object.assign({}, state.baseStyle);
   syncControlsFromState();
+  /* syncControlsFromState -> updateModeUI has just hidden this very button —
+     the settings now match the default style, so there is nothing to go back
+     to — and hiding the control that has focus drops the VoiceOver cursor to
+     the top of the document. Hand focus on deliberately: to the rewrite button
+     if it survived, otherwise to the disclosure that holds the settings. */
+  const dest = !$("regenBtn").hidden ? $("regenBtn")
+             : !$("rerollBtn").hidden ? $("rerollBtn")
+             : $("controlsDetails").querySelector("summary");
+  focusSoon(dest);
   logEvent("style_reset", { imageId: state.currentImage ? state.currentImage.imageId : null });
   Sync.push({ type: "event", eventType: "style_reset",
     imageId: state.currentImage ? state.currentImage.imageId : null,
     styleAfter: Object.assign({}, state.currentStyle),
-    detail: "back to their starting style" });
-  announce("Style set back to your starting settings: " + styleSentence(state.baseStyle));
+    detail: "back to their default style" });
+  announce("Style set back to your default settings: " + styleSentence(state.baseStyle) + ".");
 });
 
 $("newPhotoBtn").addEventListener("click", () => {
@@ -2870,14 +3282,13 @@ $("endBtn").addEventListener("click", () => {
   if (busyBlocked()) return;
   $("endBtn").hidden = true;
   $("endConfirm").hidden = false;
-  $("endYesBtn").focus();
-  announce("This ends the session and saves everything. Confirm or cancel.");
+  focusSoon($("endConfirmText"));
 });
 
 $("endNoBtn").addEventListener("click", () => {
   $("endConfirm").hidden = true;
   $("endBtn").hidden = false;
-  $("endBtn").focus();
+  focusSoon($("endBtn"));
 });
 
 $("endYesBtn").addEventListener("click", async () => {
@@ -2887,11 +3298,26 @@ $("endYesBtn").addEventListener("click", async () => {
   $("endConfirmText").textContent = "Saving everything from this session…";
   announce("Saving everything from this session.");
 
-  /* Let anything still queued land before the script builds the export. */
+  /* Filed BEFORE the drain, so pressing the button and the export succeeding
+     are two separate facts in the sheet. Without this the only trace of a
+     finished session is session_finalized, which the Apps Script writes itself
+     — so a participant who pressed "End session" while the collector was down
+     is indistinguishable from one who closed the tab. With both rows you can
+     tell "never pressed" from "pressed and it failed", which are different
+     problems with different fixes. */
+  Sync.push({ type: "event", eventType: "end_session_pressed",
+    detail: state.descriptions.length + " descriptions, " + state.images.length +
+            " photos, " + (Sync.queue.length + Sync.parked.length) + " records still outstanding" });
+
+  /* Let anything still queued land before the script builds the export. The
+     wait is bounded, so it can expire with records still outstanding — which
+     the closing message has to be honest about, since the export the script
+     builds is assembled from the sheet and will simply be missing them. */
   const deadline = Date.now() + 20000;
   while ((Sync.queue.length || Sync.sending) && Date.now() < deadline){
     await new Promise(r => setTimeout(r, 400));
   }
+  const outstanding = Sync.queue.length + Sync.parked.length;
 
   let result = null;
   try {
@@ -2910,12 +3336,24 @@ $("endYesBtn").addEventListener("click", async () => {
 
   showScreen("done", "doneH");
 
-  if (result && result.ok){
+  if (result && result.ok && !outstanding){
     $("doneSummary").textContent =
       result.descriptions + " descriptions and " + result.photos +
       " photos were saved to the study folder for " + state.participantId + ".";
     announce("Session complete. Everything has been saved.");
+  } else if (result && result.ok){
+    $("doneSummary").textContent =
+      result.descriptions + " descriptions and " + result.photos +
+      " photos were saved to the study folder for " + state.participantId +
+      ", but " + outstanding + (outstanding === 1 ? " record" : " records") +
+      " had not finished uploading. Tell your interviewer before closing this page.";
+    announce("Session ended. Tell your interviewer that some records had not finished uploading.");
   } else {
+    /* Queued rather than sent directly: if the collector is reachable again
+       later this still lands, and it is the row that explains a session with an
+       end_session_pressed but no session_finalized. */
+    Sync.push({ type: "event", eventType: "finalize_failed",
+      detail: "the export could not be confirmed by the collector" });
     $("doneSummary").textContent =
       "The session has ended. The saved copy could not be confirmed, but everything sent during the session is already in the study database. Tell your interviewer.";
     announce("Session ended. Tell your interviewer that the saved copy could not be confirmed.");
@@ -2930,11 +3368,21 @@ $("endYesBtn").addEventListener("click", async () => {
    them about. Both choices are logged, because how someone sets up a reading
    surface sits next to the research question.
    ================================================================= */
+/* Nothing can be posted before a session exists — the row would carry a null
+   session id and be unattachable — but the setup screen is exactly where a
+   participant adjusts text size and polarity, so dropping those was dropping
+   the ones most worth having. Buffer instead, and replay at session start. */
+const preSessionSettings = [];
 function logSetting(type, detail){
   logEvent(type, { detail });
-  /* Nothing is posted before a session exists — the row would carry a null
-     session id and be unattachable. */
   if (state.sessionId) Sync.push({ type: "event", eventType: type, detail });
+  else preSessionSettings.push({ type, detail });
+}
+function flushPreSessionSettings(){
+  while (preSessionSettings.length){
+    const s = preSessionSettings.shift();
+    Sync.push({ type: "event", eventType: s.type, detail: s.detail + " (before session start)" });
+  }
 }
 
 /* ---- text size ---- */
@@ -2983,6 +3431,21 @@ Object.keys(THEMES).forEach(id => {
 });
 applyTheme();
 
+/* Safari scrolls to a same-page fragment but does NOT move keyboard focus or
+   the VoiceOver cursor there, even when the target carries tabindex="-1". The
+   skip link therefore appeared to do nothing: the cursor stayed on the link and
+   everything below looked unreachable. Move focus explicitly, and aim at the
+   visible screen's h1 rather than <main> itself — landing on "main, group"
+   tells the participant nothing, landing on "Take a photo, heading level 1"
+   tells them where they are. */
+$("skipLink").addEventListener("click", e => {
+  e.preventDefault();
+  const open = SCREENS.map(n => $("screen-" + n)).find(sec => sec && !sec.hidden);
+  const target = (open && open.querySelector("h1")) || $("main");
+  focusSoon(target);
+  try { target.scrollIntoView({ block: "start" }); } catch(err){}
+});
+
 $("pid").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); $("startBtn").click(); } });
 
 /* ---------------------------------------------------------------------
@@ -3020,7 +3483,17 @@ if (!usingCollectorProxy() && !CONFIG.PROXY_URL) $("keyBlock").hidden = false;
 /* pagehide, not beforeunload: iOS Safari fires beforeunload unreliably.
    sendBeacon survives the page closing, unlike fetch. Photo records are too
    large for the 64KB beacon limit, so they are the one thing that cannot be
-   rescued here — everything else in the queue goes with the final flush. */
+   rescued here — everything else in the queue goes with the final flush.
+
+   iOS fires pagehide whenever the page is BACKGROUNDED, not only when it is
+   closed — switching apps mid-interview is enough. Unguarded, that re-sent
+   every queued record and filed another session_end on each switch, so a
+   participant who checked a message three times produced four session_end rows
+   and up to four copies of anything still in flight. Records already beaconed
+   are skipped, and session_end is emitted once per page life; returning from
+   the back/forward cache arms it again, so a genuine close still reports. */
+let beaconedSessionEnd = false;
+window.addEventListener("pageshow", e => { if (e.persisted) beaconedSessionEnd = false; });
 window.addEventListener("pagehide", () => {
   if (!state.sessionId || !CONFIG.APPS_SCRIPT_URL || !navigator.sendBeacon) return;
 
@@ -3033,11 +3506,18 @@ window.addEventListener("pagehide", () => {
     return r;
   };
 
-  const pending = Sync.queue.filter(r => r.type !== "photo");
-  const records = pending.concat([stamp({
-    type: "event", eventType: "session_end",
-    detail: state.descriptions.length + " descriptions, " + state.images.length + " photos"
-  })]);
+  const pending = Sync.queue.filter(r => r.type !== "photo" && !Sync.beaconed[r.recordId]);
+  pending.forEach(r => { Sync.beaconed[r.recordId] = true; });
+
+  const records = pending.slice();
+  if (!beaconedSessionEnd){
+    beaconedSessionEnd = true;
+    records.push(stamp({
+      type: "event", eventType: "session_end",
+      detail: state.descriptions.length + " descriptions, " + state.images.length + " photos"
+    }));
+  }
+  if (!records.length) return;
 
   try {
     navigator.sendBeacon(
