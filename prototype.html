@@ -693,7 +693,6 @@ h2.section{margin-top:var(--gap-section)}
     <!-- ========================== FREE TEXT ========================== -->
     <section id="screen-freeform" aria-labelledby="freeformH" hidden>
       <h1 id="freeformH" tabindex="-1">Describe your ideal style in your own words</h1>
-      <p>Forget the four settings for a moment. In your own words, how would you want an image description written for you? Say as much or as little as you like — you can use dictation instead of typing.</p>
 
       <div class="card">
         <label class="field" for="freeformText">Your description style</label>
@@ -764,11 +763,18 @@ h2.section{margin-top:var(--gap-section)}
            "Earlier versions" followed by "Earlier versions of this description
            (0), button", a swipe heard the same three words twice; the count is
            the only thing the button adds. -->
-      <h2 class="section">Earlier versions</h2>
-      <details>
-        <summary><span id="historySummary">All versions (0)</span></summary>
-        <div id="historyList"></div>
-      </details>
+      <!-- The whole block is hidden until a second version exists. A heading, a
+           disclosure and a placeholder paragraph explaining that there is
+           nothing here yet are three swipe stops that say "nothing here yet" —
+           and for a participant who never changes the style, they are three
+           stops on every single image. -->
+      <div id="historyBlock" hidden>
+        <h2 class="section">Earlier versions</h2>
+        <details id="historyDetails">
+          <summary><span id="historySummary">All versions (0)</span></summary>
+          <div id="historyList"></div>
+        </details>
+      </div>
       </div><!-- /describedBlock -->
 
       <!-- The photo sits BELOW the description on purpose. A full-width
@@ -864,7 +870,7 @@ h2.section{margin-top:var(--gap-section)}
            participant happens to be. -->
       <button type="button" class="btn btn-secondary" id="editStyleFromResult">Change my default style settings</button>
 
-      <h2 class="section">Finishing up</h2>
+      <h2 class="section">End session</h2>
       <button type="button" class="btn btn-secondary" id="endBtn">End session</button>
       <!-- Focus lands on the explanatory paragraph, not on "Yes". Focusing the
            button announced "Yes, end the session, button" and the consequence
@@ -1651,14 +1657,37 @@ const SCREENS = ["setup","style","images","capture","freeform","result","done"];
 /* Write into a live region on the next paint rather than in the frame that
    revealed it: the region is not in the tree yet, so the mutation that should
    trigger the announcement happens where nothing is listening. */
+/* A deferred write can outlive the state that asked for it. "Preparing your
+   image…" was queued on one frame; if preparation finished before the write
+   landed — which it does for a study image, in well under 32ms — the region was
+   already hidden again by the time the text arrived. The stale message then sat
+   in the hidden region, and the NEXT reveal announced it before the real one:
+   the participant pressed "Describe this image" and heard "Preparing your
+   image" again. Each element keeps a token; a write only lands if it is still
+   the most recent one requested for that element. */
+const writeToken = new WeakMap();
 function writeSoon(el, text){
   if (!el) return;
-  const go = () => { if (el.textContent !== text) el.textContent = text; };
+  const token = {};
+  writeToken.set(el, token);
+  const go = () => {
+    if (writeToken.get(el) !== token) return;      // superseded while waiting
+    if (el.textContent !== text) el.textContent = text;
+  };
   if (typeof requestAnimationFrame === "function"){
     requestAnimationFrame(() => requestAnimationFrame(go));
   } else {
     setTimeout(go, 40);
   }
+}
+
+/* Write immediately AND cancel any pending deferred write for this element.
+   Use when the region is being torn down or when the text must not be
+   overtaken — never when the write itself is the announcement. */
+function writeNow(el, text){
+  if (!el) return;
+  writeToken.set(el, {});
+  el.textContent = text;
 }
 
 /* Validation errors land in a role="alert" region, which speaks immediately —
@@ -1990,7 +2019,9 @@ async function handleFile(file, source, researcher){
 function setAwaiting(on){
   state.awaitingDescribe = !!on;
   $("awaitingBlock").hidden = !on;
-  $("describedBlock").hidden = !!on;
+  /* Only ever hidden here. renderDescription is what reveals it, so there is no
+     window in which the heading and an empty sheet are on screen. */
+  if (on) $("describedBlock").hidden = true;
   $("controlsBlock").hidden = !!on;
   /* Cleared on both transitions: leaving it set would park a stale dimmed
      state on a control the participant will meet again on the next photo. */
@@ -2024,6 +2055,9 @@ function setBusy(on, msg){
      landing, which on a slow request is thirty seconds of silence. */
   if (!on){
     $("statusRow").hidden = true;
+    /* Emptied, not just hidden. Text left behind here is what the next reveal
+       would announce before its own message arrived. */
+    writeNow($("statusText"), "");
   } else {
     $("statusRow").hidden = false;
     if (msg) writeSoon($("statusText"), msg);
@@ -2114,7 +2148,7 @@ function startStatusTicks(){
     [20000, "Still working. This one is taking a little longer than usual."],
     [45000, "Still working. If nothing happens soon, tell your interviewer."]
   ];
-  const timers = ticks.map(t => setTimeout(() => { $("statusText").textContent = t[1]; }, t[0]));
+  const timers = ticks.map(t => setTimeout(() => writeNow($("statusText"), t[1]), t[0]));
   return () => timers.forEach(clearTimeout);
 }
 
@@ -2346,8 +2380,7 @@ async function generate(isFirst){
     /* Record and upload regardless; only paint the screen if the participant
        is still looking at this image. */
     if (stillCurrent()){
-      $("describedBlock").hidden = false;
-      renderDescription(record);
+      renderDescription(record);   // reveals describedBlock itself
       renderHistory();
     }
     logEvent("description_generated", {
@@ -2391,6 +2424,12 @@ async function generate(isFirst){
       userMessage, text
     });
     await saveNow();
+    /* The screen belongs to another image now — a new one was staged while this
+       request was in flight. Return without touching setBusy: whoever took over
+       owns the busy state, and clearing it here would unblock the controls in
+       the middle of THEIR generation. The handoff is safe because every path
+       that can replace the current image (handleFile) brackets its own
+       setBusy(true)/setBusy(false). */
     if (!stillCurrent()) return;
     setBusy(false);
     updateModeUI();
@@ -2424,8 +2463,10 @@ async function generate(isFirst){
     else {
       /* A failed REWRITE should cost them nothing: restore the version that
          was on screen before, rather than leaving the gap where it was. */
+      /* If there is no version to restore, the block stays hidden rather than
+         reappearing empty — currentVersions() is non-zero here, but previousId
+         can still be null if nothing had been rendered yet. */
       const prev = versionById(previousId);
-      $("describedBlock").hidden = false;
       if (prev){ renderDescription(prev); renderHistory(); updateModeUI(); }
     }
     showError("The description couldn't be written. " + (err.message || "") + " Try again, or take a new image.");
@@ -2628,6 +2669,12 @@ function renderVersionLine(){
 }
 function renderDescription(rec){
   state.renderedDescriptionId = rec.descriptionId;
+  /* The block is revealed HERE, by the only function that fills it. Every other
+     caller just hides it. Previously setAwaiting(false) revealed it on the way
+     into a generation — showing an empty sheet until generate() hid it again —
+     and the failed-rewrite path revealed it before checking whether it had a
+     version to put back. */
+  $("describedBlock").hidden = false;
   $("sheet").hidden = false;
   renderVersionLine();
   $("descBody").textContent = rec.text;
@@ -2649,12 +2696,17 @@ function renderHistory(){
   const host = $("historyList");
   host.textContent = "";
   if (!earlier.length){
-    const p = document.createElement("p");
-    p.className = "muted";
-    p.textContent = "Once you change the style, earlier versions will be listed here so you can play them again and pick the one you prefer.";
-    host.appendChild(p);
+    /* Also forces the disclosure shut. The count only returns to zero on a NEW
+       image, so this is what re-collapses it between images: a participant who
+       opened the history to compare versions of one image does not find it
+       already open — and already scrolled past — on the next. Within a single
+       image it stays however they left it, because comparing versions is
+       exactly when they want it open. */
+    $("historyBlock").hidden = true;
+    $("historyDetails").open = false;
     return;
   }
+  $("historyBlock").hidden = false;
   earlier.forEach(rec => {
     const div = document.createElement("div");
     div.className = "version";
@@ -2702,7 +2754,9 @@ function renderHistory(){
    some screen readers speak it twice, so only change it when it changes. */
 function setNote(text){
   const note = $("pendingNote"), txt = $("pendingText");
-  if (!text){ note.hidden = true; if (txt.textContent) txt.textContent = ""; return; }
+  /* writeNow, not a bare assignment: a deferred write from a previous setNote
+     could otherwise land after this one and repopulate a hidden region. */
+  if (!text){ note.hidden = true; writeNow(txt, ""); return; }
   /* Order matters: the old code wrote the text while the box was still hidden,
      so the mutation happened outside the accessibility tree and unhiding a
      region that already holds its text announces nothing. Reveal, then write on
@@ -3267,6 +3321,10 @@ function buildImageList(){
 }
 
 async function useResearcherImage(img){
+  /* Guarded like every other control that starts work. A file input cannot be
+     double-fired (the OS picker blocks it) but these are plain buttons, and a
+     participant hunting for the right one can easily land twice. */
+  if (busyBlocked()) return;
   clearError();
   announce("Loading the study image.");
   /* Fetch first, switch screens second. If the file is missing, the
@@ -3291,7 +3349,6 @@ async function useResearcherImage(img){
 $("describeBtn").addEventListener("click", () => {
   if (busyBlocked()) return;
   if (!state.awaitingDescribe || !state.currentImage) return;
-  $("describeBtn").setAttribute("aria-disabled", "true");
   logEvent("describe_requested", { imageId: state.currentImage.imageId });
   /* Timestamped separately from image_captured, so the gap between taking the
      photo and sending it measures how long the intent conversation ran. */
