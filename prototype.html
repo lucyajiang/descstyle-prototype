@@ -599,11 +599,9 @@ h2.section{margin-top:var(--gap-section)}
     <section id="screen-images" aria-labelledby="imagesH" hidden>
       <p class="muted tight" id="stepImages" aria-hidden="true">Step 2 of 3</p>
       <h1 id="imagesH" tabindex="-1"><span class="vh" id="stepImagesVH"></span>Study images</h1>
-      <p>Your interviewer will tell you which one to choose.</p>
       <div id="imageList"></div>
 
       <h2 class="section">Or use your own camera</h2>
-      <p class="muted">When your interviewer asks you to, you can take your own images instead.</p>
       <button type="button" class="btn btn-secondary" id="toOwnPhotos">Take my own images</button>
     </section>
 
@@ -783,7 +781,6 @@ h2.section{margin-top:var(--gap-section)}
       <button type="button" class="btn btn-secondary" id="editStyleFromResult">Change my default style settings</button>
 
       <h2 class="section">Finishing up</h2>
-      <p class="muted tight">When your interviewer says you're done, use this. It saves a copy of everything from this session.</p>
       <button type="button" class="btn btn-secondary" id="endBtn">End session</button>
       <!-- Focus lands on the explanatory paragraph, not on "Yes". Focusing the
            button announced "Yes, end the session, button" and the consequence
@@ -1424,7 +1421,6 @@ const state = {
   baseStyle: Object.assign({}, DEFAULT_STYLE),
   pendingBaseStyle: {},   // starts empty: nothing preselected
   currentStyle: Object.assign({}, DEFAULT_STYLE),
-  lastGeneratedStyle: null,
   styleMode: "dimensions",
   freeformText: "",
   renderedDescriptionId: null,   // which version the sheet is currently showing
@@ -1875,7 +1871,6 @@ async function handleFile(file, source, researcher){
        free-text itself is kept, so they can reuse it without retyping. */
     state.styleMode = "dimensions";
     state.currentStyle = Object.assign({}, state.baseStyle);
-    state.lastGeneratedStyle = null;
     syncControlsFromState();
     renderHistory();
     $("backToDesc").hidden = false;
@@ -2157,6 +2152,10 @@ async function generate(isFirst){
      a failed rewrite can put it back rather than leaving an empty screen. */
   const previousId = state.renderedDescriptionId;
   $("describedBlock").hidden = true;
+  /* The note refers to "the description above", which has just been taken off
+     screen for the rewrite. Clear it now rather than leaving it asserting
+     something about a hidden element until the next updateModeUI. */
+  setNote("");
 
   try {
     const body = {
@@ -2255,9 +2254,6 @@ async function generate(isFirst){
         detail: "requested " + CONFIG.MODEL + ", served " + record.responseModel });
     }
     state.descriptions.push(record);
-    /* Only dimension runs set a comparison point for the "you've changed the
-       settings" note. After a free-text run there is nothing to compare to. */
-    state.lastGeneratedStyle = freeform ? null : Object.assign({}, dimStyle);
 
     /* Record and upload regardless; only paint the screen if the participant
        is still looking at this image. */
@@ -2500,7 +2496,6 @@ function updatePreferBtn(){
 function clearCurrentImage(){
   state.currentImage = null;
   state.renderedDescriptionId = null;
-  state.lastGeneratedStyle = null;
   $("readBtn").hidden = true;
   $("preferBtn").hidden = true;
   $("awaitingBlock").hidden = true;
@@ -2681,9 +2676,25 @@ function updateModeUI(){
     return;
   }
 
-  /* No lastGeneratedStyle means nothing has been generated from the radios for
-     this photo yet, so the rewrite is genuinely available. */
-  const changed = !state.lastGeneratedStyle || !sameStyle(state.currentStyle, state.lastGeneratedStyle);
+  /* Nothing described yet for this image. Neither action means anything — you
+     cannot rewrite or re-roll a description that does not exist — and the note
+     is a claim ABOUT that description, so it is a claim about nothing.
+     This was the bug: `changed` used to be derived from state.lastGeneratedStyle,
+     which handleFile clears for every new image, so a null read as "changed"
+     and the very first description of every image was written underneath
+     "You've changed the settings", with the settings untouched. */
+  if (!shown){
+    setNote("");
+    $("regenBtn").hidden = true;
+    $("rerollBtn").hidden = true;
+    return;
+  }
+
+  /* Compared against the style that produced the description ON SCREEN, not
+     against the last generation that happened to succeed. The two diverge on a
+     failed rewrite, where the previous version is restored to the screen but
+     the style that produced it is no longer the last one generated. */
+  const changed = !sameStyle(state.currentStyle, shown.style || {});
   $("regenBtn").hidden = !changed;
   /* Exactly one of the two is on screen at any moment: change the settings and
      you get "write a new description", leave them alone and you get "write
@@ -2693,7 +2704,10 @@ function updateModeUI(){
   /* One label now, not two: the button is only ever on screen in the changed
      case, so the "again with these settings" wording was unreachable. */
   $("regenBtn").textContent = "Write a new description with these settings";
-  setNote(changed
+  /* Silent while a generation is in flight: describedBlock is hidden, so
+     "the description above" is not on screen to be talked about, and the status
+     row is already saying what is happening. */
+  setNote(!state.generating && changed
     ? "You've changed the settings. The description above hasn't been rewritten yet."
     : "");
 }
