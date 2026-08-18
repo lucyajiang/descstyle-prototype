@@ -106,7 +106,7 @@ body{
   background:var(--paper);
   color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  font-size:1rem;
+  font-size:var(--text-base);
   line-height:1.55;
   -webkit-text-size-adjust:100%;
   padding:
@@ -138,6 +138,16 @@ input[type=radio]:focus-visible + .swatch{
   position:absolute!important;width:1px;height:1px;overflow:hidden;
   clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;
 }
+/* Visually hidden but IN FLOW, for text that has to stay part of its
+   paragraph. .vh is position:absolute, which lifts the node out of the
+   paragraph — iOS VoiceOver then exposes it as its own element, so focusing
+   the description announced only "Version 2 — your default style." and the
+   participant had to swipe again to reach the text. Static positioning keeps
+   it inside the paragraph's text run, so both are read as one announcement. */
+.vh-flow{
+  display:inline-block;width:1px;height:1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;vertical-align:baseline;
+}
 .skip{
   position:absolute;left:-9999px;top:0;background:var(--brand);color:var(--brand-ink);
   padding:var(--gap-stack) var(--pad-text);z-index:50;border-radius:0 0 var(--radius-sm) 0;font-weight:700;
@@ -145,9 +155,9 @@ input[type=radio]:focus-visible + .swatch{
 .skip:focus{left:0}
 
 h1,h2,h3{line-height:1.2;margin:0 0 var(--gap-heading);font-weight:750;letter-spacing:-0.02em}
-h1{font-size:1.625rem}
-h2{font-size:1.25rem}
-h3{font-size:1.0625rem}
+h1{font-size:var(--text-xl)}
+h2{font-size:var(--text-lg)}
+h3{font-size:var(--text-md)}
 p{margin:0 0 var(--gap-block);max-width:70ch}
 /* 1.4.8 spacing applies BETWEEN paragraphs, not after every one. Block margins
    collapse, so this resolves to --gap-para in a prose run while a paragraph
@@ -155,7 +165,7 @@ p{margin:0 0 var(--gap-block);max-width:70ch}
    (.btn is inline-flex and never collapses, so its neighbour's bottom margin
    is the whole gap — which is why that value has to be the shared one.) */
 p + p{margin-top:var(--gap-para)}
-.muted{color:var(--ink-2);font-size:.9375rem}
+.muted{color:var(--ink-2);font-size:var(--text-sm)}
 /* 1.4.8 asks for paragraph spacing of at least 1.5x line spacing. Tight
    groupings (hints, single-line notes) opt out where they are not body text. */
 .tight{margin-bottom:var(--gap-heading)}
@@ -167,7 +177,7 @@ p + p{margin-top:var(--gap-para)}
   padding:var(--gap-hair) 0 var(--pad-text);margin-bottom:var(--gap-block);
 }
 .mast .eyebrow{
-  font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;
+  font-size:var(--text-xs);letter-spacing:.12em;text-transform:uppercase;
   font-weight:750;color:var(--ink-2);margin:0;
 }
 
@@ -178,7 +188,7 @@ p + p{margin-top:var(--gap-para)}
   display:inline-flex;align-items:center;justify-content:center;gap:var(--gap-heading);
   min-height:var(--tap);min-width:var(--tap);width:100%;
   padding:var(--pad-control) var(--gap-block);border-radius:var(--pill);
-  font:inherit;font-size:1.0625rem;font-weight:700;text-align:center;cursor:pointer;
+  font:inherit;font-size:var(--text-md);font-weight:700;text-align:center;cursor:pointer;
   border:2px solid transparent;line-height:1.3;
 }
 .btn + .btn{margin-top:var(--gap-stack)}
@@ -207,7 +217,7 @@ p + p{margin-top:var(--gap-para)}
 .filelabel{
   display:flex;align-items:center;justify-content:center;
   min-height:var(--tap);padding:var(--pad-control) var(--gap-block);border-radius:var(--pill);
-  font-size:1.0625rem;font-weight:700;cursor:pointer;border:2px solid;
+  font-size:var(--text-md);font-weight:700;cursor:pointer;border:2px solid;
 }
 .filelabel.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
 .filelabel.secondary{background:var(--paper);color:var(--ink);border-color:var(--line-strong)}
@@ -250,15 +260,15 @@ input[type=password]{
   margin:0 0 var(--gap-block);
 }
 .sheet .versionline{
-  display:flex;flex-wrap:wrap;gap:.5rem;align-items:baseline;
-  font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;
+  display:flex;flex-wrap:wrap;gap:var(--gap-heading);align-items:baseline;
+  font-size:var(--text-xs);letter-spacing:.1em;text-transform:uppercase;
   font-weight:750;color:var(--ink-2);margin-bottom:var(--gap-inline);
 }
 .sheet .desc{
-  font-size:1.25rem;line-height:1.6;max-width:42ch;margin:0;
+  font-size:var(--text-lg);line-height:1.6;max-width:42ch;margin:0;
 }
 .stylesentence{
-  font-size:.9375rem;color:var(--ink-2);margin:var(--gap-block) 0 0;
+  font-size:var(--text-sm);color:var(--ink-2);margin:var(--gap-block) 0 0;
   padding-top:var(--pad-control);border-top:1px solid var(--line);
 }
 
@@ -278,10 +288,10 @@ fieldset{
   border:0;border-radius:var(--radius);
   padding:0;margin:0 0 var(--gap-block);background:transparent;
 }
-legend{font-weight:700;padding:0;font-size:1.0625rem}
-h2.dimhead,h3.dimhead{margin:var(--gap-block) 0 var(--gap-hair);font-size:1.0625rem;font-weight:750}
+legend{font-weight:700;padding:0;font-size:var(--text-md)}
+h2.dimhead,h3.dimhead{margin:var(--gap-block) 0 var(--gap-hair);font-size:var(--text-md);font-weight:750}
 #controls .dimhead:first-child,#setupControls .dimhead:first-child{margin-top:0}
-fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:var(--gap-hair) 0 var(--gap-stack)}
+fieldset .hint{font-size:var(--text-sm);color:var(--ink-2);margin:var(--gap-hair) 0 var(--gap-stack)}
 .options{display:flex;flex-direction:column;gap:var(--gap-inline)}
 .opt{
   border:2px solid var(--line-strong);border-radius:var(--radius-sm);
@@ -312,12 +322,12 @@ fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:var(--gap-hair) 0 va
   border-color:var(--brand);
   background:radial-gradient(circle, var(--brand) 0 45%, var(--paper) 46% 100%);
 }
-.swatch .name{display:block;font-weight:700;font-size:1.0625rem}
+.swatch .name{display:block;font-weight:700;font-size:var(--text-md)}
 .opt .desc2{
   /* 3.125rem lines the definition up with the option label, past the
      1.5rem dot and its .75rem gap. Not part of the spacing scale. */
   margin:0;padding:0 var(--pad-control) var(--gap-stack) 3.125rem;
-  font-size:.9375rem;color:var(--ink-2);max-width:none;
+  font-size:var(--text-sm);color:var(--ink-2);max-width:none;
 }
 
 /* Photo */
@@ -348,14 +358,14 @@ summary{
   /* 3rem of horizontal room so the centred label clears the chevron. */
   padding:var(--pad-control) 3rem;border-radius:var(--pill);
   border:2px solid var(--line-strong);background:var(--paper);color:var(--ink);
-  font-size:1.0625rem;font-weight:700;text-align:center;cursor:pointer;
+  font-size:var(--text-md);font-weight:700;text-align:center;cursor:pointer;
   list-style:none;
 }
 summary::-webkit-details-marker{display:none}
 summary::after{
   content:"";position:absolute;right:1.375rem;top:50%;
   width:.55rem;height:.55rem;
-  border-right:2.5px solid currentColor;border-bottom:2.5px solid currentColor;
+  border-right:2px solid currentColor;border-bottom:2px solid currentColor;
   transform:translateY(-70%) rotate(45deg);
 }
 details[open] > summary::after{transform:translateY(-30%) rotate(-135deg)}
@@ -382,7 +392,7 @@ details > div{padding:0;margin-top:var(--gap-stack)}
    :empty while shown and is hidden by the [hidden] attribute instead. The
    heading is what makes it findable in the rotor once it has been announced —
    a bare live region cannot be navigated back to. */
-.notice-head{font-size:1.0625rem;margin:0 0 var(--gap-tight)}
+.notice-head{font-size:var(--text-md);margin:0 0 var(--gap-tight)}
 
 .spinner{
   flex:0 0 auto;width:1.125rem;height:1.125rem;border-radius:50%;
@@ -421,7 +431,7 @@ details > div{padding:0;margin-top:var(--gap-stack)}
 .syncrow{
   display:flex;align-items:center;justify-content:space-between;gap:var(--gap-stack);
   border-top:1px solid var(--line);margin-top:var(--gap-section);padding-top:var(--gap-block);
-  font-size:.875rem;color:var(--ink-2);flex-wrap:wrap;
+  font-size:var(--text-sm);color:var(--ink-2);flex-wrap:wrap;
 }
 .pill{
   display:inline-block;padding:var(--gap-hair) var(--gap-stack);border-radius:var(--pill);
@@ -435,12 +445,12 @@ details > div{padding:0;margin-top:var(--gap-stack)}
 .display{flex:0 0 auto;margin-bottom:0}
 .display > summary{
   padding:var(--gap-stack) 2.5rem var(--gap-stack) var(--pad-text);
-  font-size:1rem;
+  font-size:var(--text-base);
 }
 .display > summary::after{right:var(--pad-text)}
 details[open].display{flex:1 1 100%;margin-top:var(--gap-stack)}
 .setgroup + .setgroup{margin-top:var(--gap-block)}
-.setlabel{font-weight:700;margin:0 0 var(--gap-tight);font-size:.9375rem}
+.setlabel{font-weight:700;margin:0 0 var(--gap-tight);font-size:var(--text-sm)}
 .themectl{display:flex;gap:var(--gap-tight);flex-wrap:wrap}
 .themectl button{
   min-height:var(--tap);padding:0 var(--pad-text);font:inherit;font-weight:700;
@@ -472,7 +482,8 @@ h2.section{margin-top:var(--gap-section)}
 /* A short line tucked under the thing it annotates. */
 .subnote{margin:var(--gap-heading) 0 0}
 
-/* The three text-size buttons step up in size to preview their effect. */
+/* Deliberately OFF the type scale: these two exist to look like the size they
+   set, so they are previews rather than scale members. */
 .sizectl .size-2{font-size:1.15rem}
 .sizectl .size-3{font-size:1.35rem}
 
@@ -633,12 +644,26 @@ h2.section{margin-top:var(--gap-section)}
       <p class="muted tight" id="stepCapture" aria-hidden="true">Step 3 of 3</p>
       <h1 id="captureH" tabindex="-1"><span class="vh" id="stepCaptureVH"></span>Take an image</h1>
 
-      <div class="card stack">
-        <input type="file" id="camInput" class="vh" accept="image/*" capture="environment">
-        <label class="filelabel primary" for="camInput">Take an image with the camera</label>
+      <!-- The <input> is visually hidden but still in the accessibility tree,
+           and the <label> is a full-width styled block sitting somewhere else
+           on screen — so VoiceOver exposed BOTH: the label as static text, then
+           the input as a button carrying that same text. Every participant
+           heard each picker twice.
 
-        <input type="file" id="libInput" class="vh" accept="image/*">
-        <label class="filelabel secondary" for="libInput">Choose an image from your library</label>
+           The input therefore carries its own aria-label and the visual label
+           is aria-hidden. Naming the input directly (rather than relying on
+           for=) means the name survives the label leaving the tree, and the
+           label still works for pointer and keyboard activation, which
+           aria-hidden does not affect. The two strings must be kept in step by
+           hand — that is the cost of this fix. -->
+      <div class="card stack">
+        <input type="file" id="camInput" class="vh" accept="image/*" capture="environment"
+               aria-label="Take an image with the camera">
+        <label class="filelabel primary" for="camInput" aria-hidden="true">Take an image with the camera</label>
+
+        <input type="file" id="libInput" class="vh" accept="image/*"
+               aria-label="Choose an image from your library">
+        <label class="filelabel secondary" for="libInput" aria-hidden="true">Choose an image from your library</label>
       </div>
 
       <p class="muted">Images and descriptions from this session are saved to the study's database so the interviewer can follow along with you.</p>
@@ -648,13 +673,21 @@ h2.section{margin-top:var(--gap-section)}
            twice as far apart as every other stacked button in the app. As
            siblings they share the one rhythm. .btn-quiet on the last one was
            the same problem in the other direction: an underlined auto-width
-           link in a column of full-width pills. -->
-      <h2 class="section">Move on</h2>
-      <button type="button" class="btn btn-secondary" id="backToDesc" hidden>Back to the current description</button>
-      <button type="button" class="btn btn-secondary" id="toStudyImages" hidden>Back to the study images</button>
+           link in a column of full-width pills.
 
+           Default style comes FIRST here, and the two returns are "Go back"
+           rather than "Move on". On the result screen "Move on" is accurate —
+           both controls under it lead somewhere new. On this screen the two
+           return controls lead somewhere the participant has already been, and
+           the forward step is taking an image, which is at the top. Changing
+           the default is also the control the protocol sends people here for,
+           so it is the one that should come first. -->
       <h2 class="section">Default style</h2>
       <button type="button" class="btn btn-secondary" id="editStyleBtn">Change my default style settings</button>
+
+      <h2 class="section">Go back</h2>
+      <button type="button" class="btn btn-secondary" id="backToDesc" hidden>Back to the current description</button>
+      <button type="button" class="btn btn-secondary" id="toStudyImages" hidden>Back to the study images</button>
     </section>
 
     <!-- ========================== FREE TEXT ========================== -->
@@ -703,7 +736,12 @@ h2.section{margin-top:var(--gap-section)}
            aria-hidden so it is not heard twice on a swipe through. -->
       <div class="sheet" id="sheet">
         <p class="versionline" aria-hidden="true"><span id="versionLabel">Version 1</span></p>
-        <p class="desc" id="descText" tabindex="-1"><span class="vh" id="descVersionVH"></span><span id="descBody"></span></p>
+        <!-- role="text" is a WebKit extension that tells VoiceOver to flatten this
+             element's children into a single text run. Belt and braces with
+             .vh-flow above: either one alone should merge the version prefix
+             into the description, and the role is simply ignored by engines
+             that do not know it, leaving the native paragraph semantics. -->
+        <p class="desc" id="descText" role="text" tabindex="-1"><span class="vh-flow" id="descVersionVH"></span><span id="descBody"></span></p>
         <p class="stylesentence" id="styleSentence"></p>
       </div>
 
