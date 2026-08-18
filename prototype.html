@@ -58,7 +58,16 @@ try{ if (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches
   --gap-inline:.625rem;    /* between items sitting on one line            */
   --gap-tight:.375rem;     /* label to the thing it labels                 */
   --gap-heading:.5rem;     /* heading to the text it introduces            */
-  --gap-para:1.5rem;       /* between paragraphs (1.4.8 spacing)           */
+  --gap-para:1.5rem;       /* between consecutive paragraphs only          */
+  /* Resolved vertical rhythm, one value per relationship:
+       0.5   heading -> the content it introduces
+       0.75  control -> control in a stack (buttons, disclosures)
+       1.25  block   -> anything (prose, cards, status boxes, the sheet)
+       1.5   paragraph -> paragraph, inside a prose run
+       1.75  anything -> a section heading
+     .btn is inline-flex, so margins never collapse around it: the gap is
+     whatever ONE side declares. That is why every block shares 1.25 — it is
+     the value a button inherits from whatever sits above it. */
   --gap-hair:.25rem;       /* optical nudges only                          */
   --pad-card:1.125rem;     /* inside cards, banners, the description sheet */
   --pad-control:.875rem;   /* inside buttons, rows, summaries              */
@@ -136,10 +145,16 @@ input[type=radio]:focus-visible + .swatch{
 .skip:focus{left:0}
 
 h1,h2,h3{line-height:1.2;margin:0 0 var(--gap-heading);font-weight:750;letter-spacing:-0.02em}
-h1{font-size:1.625rem;margin-bottom:var(--gap-stack)}
+h1{font-size:1.625rem}
 h2{font-size:1.25rem}
 h3{font-size:1.0625rem}
-p{margin:0 0 var(--gap-para);max-width:70ch}
+p{margin:0 0 var(--gap-block);max-width:70ch}
+/* 1.4.8 spacing applies BETWEEN paragraphs, not after every one. Block margins
+   collapse, so this resolves to --gap-para in a prose run while a paragraph
+   followed by a control keeps the --gap-block rhythm every other block uses.
+   (.btn is inline-flex and never collapses, so its neighbour's bottom margin
+   is the whole gap — which is why that value has to be the shared one.) */
+p + p{margin-top:var(--gap-para)}
 .muted{color:var(--ink-2);font-size:.9375rem}
 /* 1.4.8 asks for paragraph spacing of at least 1.5x line spacing. Tight
    groupings (hints, single-line notes) opt out where they are not body text. */
@@ -201,7 +216,6 @@ p{margin:0 0 var(--gap-para);max-width:70ch}
    other. A grid gap is immune to that: .vh inputs are position:absolute, so
    they are out of flow and do not become grid items. */
 .stack{display:grid;gap:var(--gap-stack)}
-.filelabel + .filelabel{margin-top:var(--gap-stack)}
 
 /* Cards: fill, no hairline. Not interactive, so 1.4.11 does not apply. */
 .card{
@@ -233,7 +247,7 @@ input[type=password]{
   /* A touch more room at the foot than the head, so the text sits
      optically centred in the card rather than mathematically. */
   padding:var(--gap-block) var(--gap-block) 1.375rem;
-  margin:0 0 var(--pad-text);
+  margin:0 0 var(--gap-block);
 }
 .sheet .versionline{
   display:flex;flex-wrap:wrap;gap:.5rem;align-items:baseline;
@@ -244,7 +258,7 @@ input[type=password]{
   font-size:1.25rem;line-height:1.6;max-width:42ch;margin:0;
 }
 .stylesentence{
-  font-size:.9375rem;color:var(--ink-2);margin:var(--pad-text) 0 0;
+  font-size:.9375rem;color:var(--ink-2);margin:var(--gap-block) 0 0;
   padding-top:var(--pad-control);border-top:1px solid var(--line);
 }
 
@@ -255,7 +269,7 @@ input[type=password]{
 }
 .modebox h3{margin:0 0 var(--gap-heading)}
 .modebox .own{
-  margin:0 0 var(--pad-text);font-style:normal;color:var(--ink);
+  margin:0 0 var(--gap-block);font-style:normal;color:var(--ink);
   border-left:4px solid var(--brand);padding-left:var(--pad-control);
 }
 
@@ -265,7 +279,7 @@ fieldset{
   padding:0;margin:0 0 var(--gap-block);background:transparent;
 }
 legend{font-weight:700;padding:0;font-size:1.0625rem}
-h2.dimhead,h3.dimhead{margin:var(--gap-para) 0 var(--gap-hair);font-size:1.0625rem;font-weight:750}
+h2.dimhead,h3.dimhead{margin:var(--gap-block) 0 var(--gap-hair);font-size:1.0625rem;font-weight:750}
 #controls .dimhead:first-child,#setupControls .dimhead:first-child{margin-top:0}
 fieldset .hint{font-size:.9375rem;color:var(--ink-2);margin:var(--gap-hair) 0 var(--gap-stack)}
 .options{display:flex;flex-direction:column;gap:var(--gap-inline)}
@@ -345,10 +359,10 @@ summary::after{
   transform:translateY(-70%) rotate(45deg);
 }
 details[open] > summary::after{transform:translateY(-30%) rotate(-135deg)}
-details > div{padding:0;margin-top:var(--pad-text)}
+details > div{padding:0;margin-top:var(--gap-stack)}
 /* .stack supplies the gap, so the generic button margin would double it. */
 .stack > .btn + .btn{margin-top:0}
-.version{border-top:1px solid var(--line);padding:var(--pad-text) 0 0;margin-top:var(--pad-text)}
+.version{border-top:1px solid var(--line);padding:var(--gap-block) 0 0;margin-top:var(--gap-block)}
 .version:first-child{border-top:0;margin-top:0}
 .version .btn{margin-top:var(--gap-stack)}
 
@@ -357,11 +371,11 @@ details > div{padding:0;margin-top:var(--pad-text)}
   display:flex;align-items:center;gap:var(--gap-inline);min-height:var(--tap);
   padding:var(--gap-stack) var(--pad-text);border-radius:var(--radius);
   background:var(--surface);border:0;
-  font-weight:650;margin-bottom:var(--pad-text);
+  font-weight:650;margin-bottom:var(--gap-block);
 }
 .alertbox{
   border:2px solid var(--alert);color:var(--alert);background:var(--paper);
-  border-radius:var(--radius);padding:var(--pad-text);margin-bottom:var(--pad-text);font-weight:700;
+  border-radius:var(--radius);padding:var(--pad-text);margin-bottom:var(--gap-block);font-weight:700;
 }
 .alertbox:empty{display:none}
 /* The polite setup notice is a box with a heading inside it, so it is never
@@ -406,7 +420,7 @@ details > div{padding:0;margin-top:var(--pad-text)}
 /* Sync pill */
 .syncrow{
   display:flex;align-items:center;justify-content:space-between;gap:var(--gap-stack);
-  border-top:1px solid var(--line);margin-top:2.5rem;padding-top:var(--pad-text);
+  border-top:1px solid var(--line);margin-top:var(--gap-section);padding-top:var(--gap-block);
   font-size:.875rem;color:var(--ink-2);flex-wrap:wrap;
 }
 .pill{
@@ -453,10 +467,6 @@ details[open].display{flex:1 1 100%;margin-top:var(--gap-stack)}
    --------------------------------------------------------------- */
 /* A heading that opens a major section of a screen. */
 h2.section{margin-top:var(--gap-section)}
-/* A block that follows another block rather than opening a section. */
-.block-top{margin-top:var(--gap-block)}
-/* Bumped past `.btn + .btn`, which is more specific and would otherwise win. */
-.btn.block-top{margin-top:var(--gap-block)}
 /* A paragraph carrying no trailing rhythm of its own. */
 .flush{margin:0}
 /* A short line tucked under the thing it annotates. */
@@ -492,7 +502,7 @@ h2.section{margin-top:var(--gap-section)}
     <!-- Both presentation controls behind one disclosure: it is a single stop
          before <main> instead of three, and it puts text size next to light and
          dark, which is the same question asked twice. -->
-    <details class="display" id="displaySettings">
+    <details class="display">
       <summary><span>Display</span></summary>
       <div>
         <div class="setgroup" role="group" aria-labelledby="sizeLabel">
@@ -524,7 +534,6 @@ h2.section{margin-top:var(--gap-section)}
     <!-- ============================ SETUP ============================ -->
     <section id="screen-setup" aria-labelledby="setupH">
       <h1 id="setupH" tabindex="-1">Start your session</h1>
-      <p>You'll take an image, hear a description of it, and then adjust how that description is written until it suits you.</p>
 
       <div class="card">
         <label class="field" for="pid">Participant ID</label>
@@ -575,13 +584,20 @@ h2.section{margin-top:var(--gap-section)}
       <div id="setupError" class="alertbox" role="alert"></div>
 
       <div id="setupNotice" class="alertbox" role="status" aria-live="polite" hidden>
-        <h2 class="notice-head" id="setupNoticeHead">Setup problem</h2>
+        <h2 class="notice-head">Setup problem</h2>
         <p class="flush" id="setupNoticeText"></p>
       </div>
 
-      <form id="setupStyleForm" novalidate autocomplete="off">
+      <form novalidate autocomplete="off">
         <div id="setupControls"></div>
-        <button type="button" class="btn btn-primary" id="saveStyleBtn">Save these settings and continue</button>
+
+        <!-- The four groups are ~28 stops, so without this the save button is
+             reachable only by swiping past all of them or landing on the last
+             dimension heading and swiping through its options. Every other
+             screen already anchors its critical control to a heading; this was
+             the exception, on the longest screen in the app. -->
+        <h2 class="section">Save</h2>
+        <button type="button" class="btn btn-primary" id="saveStyleBtn">Save as my default style</button>
         <!-- Shown only on a RETURN visit. There is deliberately no way out of
              the first pass: the session cannot proceed without four settings,
              and an escape hatch there would just be a way to get stuck. On a
@@ -603,13 +619,19 @@ h2.section{margin-top:var(--gap-section)}
 
       <h2 class="section">Or use your own camera</h2>
       <button type="button" class="btn btn-secondary" id="toOwnPhotos">Take my own images</button>
+
+      <!-- The third copy of this control. It is on every screen a participant
+           can be sitting on when the interviewer asks "any adjustments for all
+           images?", so the answer is never "first navigate somewhere else".
+           Cheap here: this screen is four controls long. -->
+      <h2 class="section">Default style</h2>
+      <button type="button" class="btn btn-secondary" id="editStyleFromImages">Change my default style settings</button>
     </section>
 
     <!-- =========================== CAPTURE =========================== -->
     <section id="screen-capture" aria-labelledby="captureH" hidden>
       <p class="muted tight" id="stepCapture" aria-hidden="true">Step 3 of 3</p>
       <h1 id="captureH" tabindex="-1"><span class="vh" id="stepCaptureVH"></span>Take an image</h1>
-      <p>Point your camera at anything nearby that you'd normally want described. You can take as many images as you like during the session.</p>
 
       <div class="card stack">
         <input type="file" id="camInput" class="vh" accept="image/*" capture="environment">
@@ -627,8 +649,11 @@ h2.section{margin-top:var(--gap-section)}
            siblings they share the one rhythm. .btn-quiet on the last one was
            the same problem in the other direction: an underlined auto-width
            link in a column of full-width pills. -->
+      <h2 class="section">Move on</h2>
       <button type="button" class="btn btn-secondary" id="backToDesc" hidden>Back to the current description</button>
       <button type="button" class="btn btn-secondary" id="toStudyImages" hidden>Back to the study images</button>
+
+      <h2 class="section">Default style</h2>
       <button type="button" class="btn btn-secondary" id="editStyleBtn">Change my default style settings</button>
     </section>
 
@@ -639,13 +664,13 @@ h2.section{margin-top:var(--gap-section)}
 
       <div class="card">
         <label class="field" for="freeformText">Your description style</label>
-        <p class="muted tight" id="freeformHint">For example, what it should include or leave out, how long it should be, and how it should sound.</p>
+        <p class="muted tight">For example, what it should include or leave out, how long it should be, and how it should sound.</p>
         <textarea id="freeformText" rows="6"></textarea>
       </div>
 
       <div id="freeformError" class="alertbox" role="alert"></div>
 
-      <button type="button" class="btn btn-primary" id="freeformGoBtn">Write a description this way</button>
+      <button type="button" class="btn btn-primary" id="freeformGoBtn">Regenerate</button>
       <button type="button" class="btn btn-secondary" id="freeformBackBtn">Back to the description</button>
     </section>
 
@@ -663,11 +688,11 @@ h2.section{margin-top:var(--gap-section)}
            written yet, so there is nothing to spoil. Once sent, the
            description is shown and spoken immediately — no second gate. -->
       <div id="awaitingBlock" hidden>
-        <button type="button" class="btn btn-primary block-top" id="describeBtn">Describe this image</button>
+        <button type="button" class="btn btn-primary" id="describeBtn">Describe this image</button>
       </div>
 
       <div id="describedBlock" hidden>
-      <h2 id="descH" class="block-top">Description</h2>
+      <h2 class="section">Description</h2>
 
       <!-- Focus lands on #descText when a version arrives, so the paragraph is
            read on arrival. The version number has to travel with it: it used
@@ -702,7 +727,7 @@ h2.section{margin-top:var(--gap-section)}
            (0), button", a swipe heard the same three words twice; the count is
            the only thing the button adds. -->
       <h2 class="section">Earlier versions</h2>
-      <details id="historyDetails">
+      <details>
         <summary><span id="historySummary">All versions (0)</span></summary>
         <div id="historyList"></div>
       </details>
@@ -720,7 +745,6 @@ h2.section{margin-top:var(--gap-section)}
 
       <div id="controlsBlock" hidden>
       <h2 class="section">Change the style</h2>
-      <p class="muted" id="styleIntro">Pick the options you'd prefer, then write a new description. The image stays the same.</p>
 
       <!-- Shown only while the current description came from the participant's
            own words, so the four settings below are never mistaken for the
@@ -728,11 +752,16 @@ h2.section{margin-top:var(--gap-section)}
       <div class="modebox" id="freeformActive" hidden>
         <h3>This description came from your own words</h3>
         <p class="own" id="freeformEcho"></p>
-        <button type="button" class="btn btn-primary" id="regenFreeformBtn">Write it again in my own words</button>
+        <!-- Short label, and it works because of where it sits: inside the
+             "This description came from your own words" box, directly under an
+             echo of what the participant wrote. A screen reader reaches the
+             heading and the echo before it, so "Regenerate" is unambiguous in
+             the only place this button exists. -->
+        <button type="button" class="btn btn-primary" id="regenFreeformBtn">Regenerate</button>
         <button type="button" class="btn btn-secondary" id="editFreeformBtn">Edit what I wrote</button>
       </div>
 
-      <form id="styleForm" novalidate autocomplete="off">
+      <form novalidate autocomplete="off">
         <!-- Outside the disclosure, and above it, because this is the one
              action on this screen that does NOT need the four settings: it
              reuses them exactly as they are. Inside, it would sit behind about
@@ -740,15 +769,18 @@ h2.section{margin-top:var(--gap-section)}
              has no reason to visit. The rewrite button stays inside with the
              settings, since it only exists once they have been changed — the
              two are never on screen at the same time. -->
-        <button type="button" class="btn btn-primary" id="rerollBtn" hidden>Write another description with these settings</button>
+        <button type="button" class="btn btn-primary" id="rerollBtn" hidden>Generate another description with these settings</button>
 
-        <!-- Collapsed while a free-text description is on screen: the four
-             groups are around thirty swipe stops of settings that did not
-             produce what the participant is looking at. The summary is a
-             native disclosure, so a screen reader announces it as a button
-             with expanded/collapsed state, and the contents leave the
-             accessibility tree entirely while closed. -->
-        <details id="controlsDetails" open>
+        <!-- Closed by default. Expanded, the four groups are 28 swipe stops
+             and 119 words that a participant crosses on EVERY return to this
+             screen — after every regeneration — to reach the description, the
+             history, or anything below. Closed, the result screen is about six
+             stops. The summary is a native disclosure, so a screen reader
+             announces it as a button with expanded/collapsed state, and the
+             contents leave the accessibility tree entirely while closed:
+             nothing is hidden, it is one press away at the moment it is
+             wanted. -->
+        <details id="controlsDetails">
           <summary><span>Four style settings</span></summary>
           <div id="controls"></div>
 
@@ -760,8 +792,8 @@ h2.section{margin-top:var(--gap-section)}
                opening the disclosure gives you the settings AND the two buttons
                that use them. In free-text mode the whole block is collapsed,
                which is what removes the second blue button from the screen. -->
-          <div class="stack" id="controlsActions">
-            <button type="button" class="btn btn-primary" id="regenBtn">Write a new description with these settings</button>
+          <div class="stack">
+            <button type="button" class="btn btn-primary" id="regenBtn">Generate a new description with these settings</button>
             <button type="button" class="btn btn-secondary" id="resetBtn">Go back to my default style</button>
           </div>
         </details>
@@ -771,13 +803,27 @@ h2.section{margin-top:var(--gap-section)}
 
       </div><!-- /controlsBlock -->
 
-      <button type="button" class="btn btn-secondary block-top" id="newPhotoBtn">Choose another image</button>
+      <!-- These two were the only controls on the screen sitting under no
+           heading: rotor navigation went "Change the style" straight to
+           "Finishing up", landing PAST both of them, so the only way to reach
+           either was to swipe backwards from the end of the page. Both take the
+           participant off the current description, so one heading covers them.
+           block-top is dropped from the button — the h2 supplies the gap now,
+           and .btn margins do not collapse with it. -->
+      <h2 class="section">Move on</h2>
+      <button type="button" class="btn btn-secondary" id="newPhotoBtn">Choose another image</button>
+
+      <h2 class="section">Default style</h2>
 
       <!-- The protocol asks "any adjustments to your settings for ALL images?"
            at the end of each task block, by which point the participant is
            sitting on a result screen. Without this the only way to act on that
            answer is to navigate off to the camera screen and find the same
-           control there, which costs interview time and a lost place. -->
+           control there, which costs interview time and a lost place.
+           The "Default style" heading above is deliberately the SAME on all
+           three screens carrying this button, so the interviewer reads one
+           sentence — "under the Default style heading" — wherever the
+           participant happens to be. -->
       <button type="button" class="btn btn-secondary" id="editStyleFromResult">Change my default style settings</button>
 
       <h2 class="section">Finishing up</h2>
@@ -788,7 +834,11 @@ h2.section{margin-top:var(--gap-section)}
            text reads the consequence first and leaves the two buttons next in
            reading order. tabindex="-1" makes it focusable without adding a tab
            stop for anyone who does not need it. -->
-      <div id="endConfirm" role="group" aria-labelledby="endConfirmText" hidden>
+      <!-- No role="group"/aria-labelledby: focus lands on the paragraph below,
+           which reads the consequence out. Naming the group with that same
+           paragraph made VoiceOver announce it once on entering the group and
+           again as the focused element. -->
+      <div id="endConfirm" hidden>
         <p id="endConfirmText" tabindex="-1">This ends the session and saves everything. You won't be able to make more descriptions afterwards.</p>
         <button type="button" class="btn btn-primary" id="endYesBtn">Yes, end the session</button>
         <button type="button" class="btn btn-secondary" id="endNoBtn">No, keep going</button>
@@ -853,7 +903,7 @@ const CONFIG = {
   MAX_OUTPUT_TOKENS: 2000,
   MAX_OUTPUT_TOKENS_OWN_PHOTO: 8000,
   /* generate.py pinned a seed per candidate (e.g. 425). Deliberately null
-     here: with a fixed seed the "Write another description with these
+     here: with a fixed seed the "Generate another description with these
      settings" button would return the identical text every time, and re-rolling
      the same cell is something participants actually do. That button exists
      because of this line — pin a seed and it becomes a no-op that should be
@@ -971,7 +1021,7 @@ const CONFIG = {
 const RESEARCHER_IMAGES = [
   { id: "Obj_Text_2", category: "Object with text",    label: "Object with text",    src: "images/Obj_Text_2.jpg" },
   { id: "People_1",   category: "People",              label: "People",              src: "images/People_1.jpg" },
-  { id: "Sur_Ext_4",  category: "Surroundings outdoors", label: "Surroundings outdoors", src: "images/Sur_Ext_4.jpg" }
+  { id: "Sur_Ext_4",  category: "Surroundings outside the home", label: "Surroundings outside the home", src: "images/Sur_Ext_4.jpg" }
 ];
 
 /* Study images already live in your repo, so their bytes are not re-uploaded
@@ -2481,9 +2531,14 @@ function updatePreferBtn(){
   /* aria-pressed carries the state to a screen reader; the fill and tick carry
      it visually. Both are needed — the label alone changed too quietly. */
   btn.setAttribute("aria-pressed", rec.preferred ? "true" : "false");
+  /* No version number here: this button sits directly beneath the description
+     it applies to, and the version is already announced as part of that
+     paragraph. The history entries below DO keep their numbers, because they
+     are reached out of context from the rotor. Dropping it also makes the
+     label a fixed string the interview protocol can quote verbatim. */
   btn.textContent = rec.preferred
     ? "Saved as the description you prefer"
-    : "Save version " + rec.generationIndex + " as the description I prefer";
+    : "Save this as the description I prefer";
 }
 
 /* =================================================================
@@ -2632,7 +2687,13 @@ function setNote(text){
 function syncControlsDisclosure(freeform){
   if (state.lastModeFreeform === freeform) return;
   state.lastModeFreeform = freeform;
-  $("controlsDetails").open = !freeform;
+  /* Only ever forced CLOSED, never open. Forcing it open on the first pass is
+     what used to override the collapsed default, putting all 28 stops back on
+     screen before the participant had asked for them. Entering free-text mode
+     still closes it, because the four settings did not produce the description
+     being looked at — and a participant who opens it themselves keeps it open
+     until they close it or switch modes. */
+  if (freeform) $("controlsDetails").open = false;
 }
 
 function updateModeUI(){
@@ -2645,7 +2706,6 @@ function updateModeUI(){
   const shown = renderedRecord();
   const freeform = !!shown && shown.styleMode === "freeform";
   $("freeformActive").hidden = !freeform;
-  $("styleIntro").hidden = freeform;
   syncControlsDisclosure(freeform);
 
   /* Both actions appear only when they would DO something. An action that is
@@ -2654,7 +2714,7 @@ function updateModeUI(){
      nothing — which reads as the app being broken.
        - "Go back to my default style" does nothing unless the settings have
          moved off the participant's own starting cell.
-       - "Write a new description with these settings" does nothing new unless
+       - "Generate a new description with these settings" does nothing new unless
          the settings differ from the ones that produced what is on screen.
      In free-text mode the rewrite button IS meaningful whatever the radios say,
      because the description on screen did not come from them at all. */
@@ -2672,7 +2732,7 @@ function updateModeUI(){
        thing to swipe past for no new information. */
     setNote("");
     $("regenBtn").hidden = false;
-    $("regenBtn").textContent = "Write a description with these four settings instead";
+    $("regenBtn").textContent = "Generate a description with these four settings instead";
     return;
   }
 
@@ -2703,7 +2763,7 @@ function updateModeUI(){
   $("rerollBtn").hidden = changed;
   /* One label now, not two: the button is only ever on screen in the changed
      case, so the "again with these settings" wording was unreachable. */
-  $("regenBtn").textContent = "Write a new description with these settings";
+  $("regenBtn").textContent = "Generate a new description with these settings";
   /* Silent while a generation is in flight: describedBlock is hidden, so
      "the description above" is not on screen to be talked about, and the status
      row is already saying what is happening. */
@@ -3126,6 +3186,8 @@ function openStyleEditor(from){
 
 $("editStyleBtn").addEventListener("click", () => openStyleEditor("capture"));
 
+$("editStyleFromImages").addEventListener("click", () => openStyleEditor("images"));
+
 $("editStyleFromResult").addEventListener("click", () => {
   if (busyBlocked()) return;
   openStyleEditor("result");
@@ -3138,9 +3200,14 @@ $("cancelStyleBtn").addEventListener("click", () => {
   state.pendingBaseStyle = Object.assign({}, state.baseStyle);
   $("setupError").textContent = "";
   showSetupNotice("");
-  const from = state.styleEditFrom === "result" && state.currentImage ? "result" : "capture";
+  /* Back to whichever of the three screens they came from. "result" only
+     survives if there is still an image to go back to. */
+  const FOCUS = { result: "resultH", images: "imagesH", capture: "captureH" };
+  let from = state.styleEditFrom;
+  if (from === "result" && !state.currentImage) from = "capture";
+  if (!FOCUS[from]) from = "capture";
   state.styleEditFrom = null;
-  showScreen(from, from === "result" ? "resultH" : "captureH");
+  showScreen(from, FOCUS[from]);
   announce("Nothing changed. Your default style is still " +
            styleSentence(state.baseStyle) + ".");
 });
@@ -3226,7 +3293,7 @@ $("freeformGoBtn").addEventListener("click", () => {
   const text = $("freeformText").value.trim();
   if (text.length < 3){
     $("freeformError").textContent =
-      "Say a little more about how you'd like descriptions written, then choose “Write a description this way”.";
+      "Say a little more about how you'd like descriptions written, then choose “Regenerate”.";
     focusAfterAlert($("freeformText"));
     return;
   }
